@@ -1,0 +1,22 @@
+[project]
+name = "bulwark"
+version = "0.1.0"
+description = "A plugin-based MCP server using pluggy for extensibility"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "mcp[cli]>=1.28.1",
+    "pluggy>=1.6.0",
+]
+
+[project.entry-points."bulwark.plugins"]
+# Plugins register here, e.g.:
+# my-plugin = "my_plugin_module"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,148 @@
+"""
+Plugin manager for Bulwark MCP server.
+
+Handles plugin discovery, loading, and coordination of hook calls.
+"""
+
+import importlib.metadata
+from pathlib import Path
+from typing import Any
+
+import pluggy
+from mcp.server.fastmcp import FastMCP
+
+from . import hooks
+from .hooks import (
+    PluginMetadata,
+    hookimpl,
+)
+
+
+class PluginManager:
+    """Manages plugin discovery, loading, and hook coordination."""
+
+    ENTRY_POINT_GROUP = "bulwark.plugins"
+
+    def __init__(self):
+        self.pm = pluggy.PluginManager("bulwark")
+        self.pm.add_hookspecs(hooks)
+        self._plugins: dict[str, Any] = {}
+        self._metadata: dict[str, PluginMetadata] = {}
+
+    def discover_plugins(self) -> list[str]:
+        """
+        Discover plugins via entry points.
+
+        Returns:
+            list[str]: List of discovered plugin names
+        """
+        discovered = []
+        try:
+            entry_points = importlib.metadata.entry_points()
+            # Handle both old and new entry_points API
+            if hasattr(entry_points, "select"):
+                plugin_eps = entry_points.select(group=self.ENTRY_POINT_GROUP)
+            else:
+                plugin_eps = entry_points.get(self.ENTRY_POINT_GROUP, [])
+
+            for ep in plugin_eps:
+                discovered.append(ep.name)
+        except Exception:
+            pass  # No plugins installed yet
+
+        return discovered
+
+    def load_plugin(self, name: str) -> bool:
+        """
+        Load a plugin by name.
+
+        Args:
+            name: The plugin name (entry point name)
+
+        Returns:
+            bool: True if loaded successfully, False otherwise
+        """
+        try:
+            entry_points = importlib.metadata.entry_points()
+            if hasattr(entry_points, "select"):
+                plugin_eps = entry_points.select(group=self.ENTRY_POINT_GROUP)
+            else:
+                plugin_eps = entry_points.get(self.ENTRY_POINT_GROUP, [])
+
+            ep = next((e for e in plugin_eps if e.name == name), None)
+            if ep is None:
+                return False
+
+            plugin = ep.load()
+            self.pm.register(plugin, name=name)
+            self._plugins[name] = plugin
+
+            # Get plugin metadata (firstresult=True returns tuple directly)
+            metadata_result = self.pm.hook.bulwark_register_plugin_info()
+            if metadata_result and isinstance(metadata_result, tuple):
+                plugin_name, meta = metadata_result
+                if isinstance(meta, PluginMetadata):
+                    self._metadata[plugin_name] = meta
+
+            return True
+        except Exception:
+            return False
+
+    def load_all(self) -> None:
+        """Load all discovered plugins."""
+        for name in self.discover_plugins():
+            self.load_plugin(name)
+
+    def register_tools(self, mcp_server: FastMCP) -> None:
+        """
+        Call bulwark_register_tools hook on all loaded plugins.
+
+        Args:
+            mcp_server: The FastMCP server instance
+        """
+        self.pm.hook.bulwark_register_tools(mcp_server=mcp_server)
+
+    def register_resources(self, mcp_server: FastMCP) -> None:
+        """
+        Call bulwark_register_resources hook on all loaded plugins.
+
+        Args:
+            mcp_server: The FastMCP server instance
+        """
+        self.pm.hook.bulwark_register_resources(mcp_server=mcp_server)
+
+    def register_prompts(self, mcp_server: FastMCP) -> None:
+        """
+        Call bulwark_register_prompts hook on all loaded plugins.
+
+        Args:
+            mcp_server: The FastMCP server instance
+        """
+        self.pm.hook.bulwark_register_prompts(mcp_server=mcp_server)
+
+    def validate_secrets(self) -> list[tuple[str, str]]:
+        """
+        Call bulwark_validate_secrets hook on all loaded plugins.
+
+        Returns:
+            list[tuple[str, str]]: List of (plugin_name, error_message) for
+                plugins that failed validation
+        """
+        errors = []
+        results = self.pm.hook.bulwark_validate_secrets()
+
+        for result in results:
+            if isinstance(result, tuple) and len(result) == 3:
+                plugin_name, is_valid, error_msg = result
+                if not is_valid:
+                    errors.append((plugin_name, error_msg))
+
+        return errors
+
+    def get_loaded_plugins(self) -> list[str]:
+        """Return list of loaded plugin names."""
+        return list(self._plugins.keys())
+
+    def get_metadata(self, name: str) -> PluginMetadata | None:
+        """Get metadata for a loaded plugin."""
+        return self._metadata.get(name)

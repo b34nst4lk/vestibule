@@ -1,0 +1,138 @@
+"""
+Pluggy hook specifications for Bulwark plugin system.
+
+Plugins implement these hooks to register MCP tools, resources, and prompts
+with the Bulwark server.
+"""
+
+import pluggy
+from mcp.server.fastmcp import FastMCP
+
+hookspec = pluggy.HookspecMarker("bulwark")
+hookimpl = pluggy.HookimplMarker("bulwark")
+
+
+class PluginMetadata:
+    """Metadata about a loaded plugin."""
+
+    def __init__(
+        self,
+        name: str,
+        version: str = "0.0.0",
+        description: str = "",
+        enabled: bool = True,
+    ):
+        self.name = name
+        self.version = version
+        self.description = description
+        self.enabled = enabled
+
+
+@hookspec(firstresult=True)
+def bulwark_register_plugin_info() -> tuple[str, PluginMetadata]:
+    """
+    Hook spec for plugins to provide their metadata.
+
+    Implementations should return a tuple of (plugin_name, PluginMetadata)
+    with the plugin's name, version, description, and enabled status.
+
+    Returns:
+        tuple[str, PluginMetadata]: (plugin_name, metadata)
+
+    Example:
+        @hookimpl
+        def bulwark_register_plugin_info():
+            meta = PluginMetadata(
+                name="email-whitelist",
+                version="0.1.0",
+                description="Email whitelisting plugin",
+            )
+            return "email-whitelist", meta
+    """
+    pass
+
+
+@hookspec
+def bulwark_register_tools(mcp_server: FastMCP) -> None:
+    """
+    Hook spec for plugins to register MCP tools.
+
+    Implementations receive the FastMCP server instance and should register
+    their tools using the server's tool registration mechanisms.
+
+    Args:
+        mcp_server: The FastMCP server instance to register tools with
+
+    Example:
+        @hookimpl
+        def bulwark_register_tools(mcp_server: FastMCP):
+            @mcp_server.tool()
+            def send_email(recipient: str, body: str) -> str:
+                \"\"\"Send an email to a recipient.\"\"\"
+                return f"Email sent to {recipient}"
+    """
+    pass
+
+
+@hookspec
+def bulwark_register_resources(mcp_server: FastMCP) -> None:
+    """
+    Hook spec for plugins to register MCP resources.
+
+    Implementations receive the FastMCP server instance and should register
+    their resources using the server's resource registration mechanisms.
+
+    Args:
+        mcp_server: The FastMCP server instance to register resources with
+
+    Example:
+        @hookimpl
+        def bulwark_register_resources(mcp_server: FastMCP):
+            @mcp_server.resource("config://plugin/settings")
+            def get_settings() -> dict:
+                return {"key": "value"}
+    """
+    pass
+
+
+@hookspec
+def bulwark_register_prompts(mcp_server: FastMCP) -> None:
+    """
+    Hook spec for plugins to register MCP prompts.
+
+    Implementations receive the FastMCP server instance and should register
+    their prompts using the server's prompt registration mechanisms.
+
+    Args:
+        mcp_server: The FastMCP server instance to register prompts with
+
+    Example:
+        @hookimpl
+        def bulwark_register_prompts(mcp_server: FastMCP):
+            @mcp_server.prompt()
+            def email_template(recipient: str) -> str:
+                return f"Draft an email to {recipient}"
+    """
+    pass
+
+
+@hookspec
+def bulwark_validate_secrets() -> tuple[str, bool, str]:
+    """
+    Hook spec for plugins to validate their required secrets.
+
+    Implementations should check that all required secrets are available
+    and return a tuple of (plugin_name, is_valid, error_message).
+
+    Returns:
+        tuple[str, bool, str]: (plugin_name, is_valid, error_message) -
+            error_message is only meaningful if is_valid is False
+
+    Example:
+        @hookimpl
+        def bulwark_validate_secrets():
+            if not os.getenv("SMTP_API_KEY"):
+                return "email-plugin", False, "SMTP_API_KEY is required"
+            return "email-plugin", True, ""
+    """
+    pass
