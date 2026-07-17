@@ -7,16 +7,33 @@ requires-python = ">=3.13"
 dependencies = [
     "mcp[cli]>=1.28.1",
     "pluggy>=1.6.0",
+    "pydantic>=2.0",
+    "typer>=0.27.0",
 ]
+
+[project.scripts]
+bulwark = "bulwark.cli:main"
 
 [project.entry-points."bulwark.plugins"]
 # Plugins register here, e.g.:
-# my-plugin = "my_plugin_module"
+# email = "bulwark_email"
+
+[tool.uv.workspace]
+members = ["packages/bulwark_email"]
+
+[tool.uv.sources]
+bulwark = { workspace = true }
 
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
+    "pytest-cov>=4.0",
+    "pytest-asyncio>=0.23",
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "packages/bulwark_email/tests"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

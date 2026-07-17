@@ -1,0 +1,18 @@
+[project]
+name = "bulwark-email"
+version = "0.1.0"
+description = "Email whitelisting plugin for Bulwark MCP server"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "bulwark",
+    "mcp[cli]>=1.27,<2",
+    "pydantic>=2.0",
+]
+
+[project.entry-points."bulwark.plugins"]
+email = "bulwark_email"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

@@ -1,0 +1,31 @@
+# Example Bulwark Configuration
+# Copy this to .bulwark/config.toml
+
+# -----------------------------------------------------------------------------
+# Server Settings
+# -----------------------------------------------------------------------------
+
+[tool.bulwark]
+host = "localhost"
+port = 8080
+transport = "stdio"  # or "http-sse"
+log-level = "info"
+
+# -----------------------------------------------------------------------------
+# Email Plugin Configuration
+# -----------------------------------------------------------------------------
+
+[tool.bulwark.plugins.email]
+smtp_host = "smtp.gmail.com"
+smtp_port = 587
+smtp_use_tls = true
+sender_email = "you@gmail.com"
+sender_name = "Your Name"
+default_recipient = "alice"
+
+# Whitelist: friendly name -> email address mapping
+[tool.bulwark.plugins.email.whitelist]
+alice = "alice@example.com"
+bob = "bob@example.com"
+charlie = "charlie@company.com"
+team = "team@company.com"
