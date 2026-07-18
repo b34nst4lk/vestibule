@@ -67,18 +67,23 @@ class StdioTransport:
         """
         self._running = True
 
-        # Set stdin to not buffer
+        # Use asyncio.StreamReader for non-blocking stdin
         loop = asyncio.get_event_loop()
+        stdin_stream = asyncio.StreamReader()
+        protocol = asyncio.StreamReaderProtocol(stdin_stream)
+
+        # Connect stdin to the stream reader
+        await loop.connect_read_pipe(lambda: protocol, sys.stdin)
 
         while self._running:
             try:
-                # Read a line from stdin
-                line = await loop.run_in_executor(None, sys.stdin.readline)
+                # Read a line from stdin (non-blocking)
+                line = await stdin_stream.readline()
                 if not line:
                     # EOF - client disconnected
                     break
 
-                line = line.strip()
+                line = line.decode('utf-8').strip()
                 if not line:
                     continue
 
@@ -193,22 +198,30 @@ class StdioTransport:
         Returns:
             List of available tools
         """
-        # Get tools from the FastMCP server
-        tools = []
+        # Get tools from the FastMCP server using list_tools method
+        tools_result = await self.mcp_server.list_tools()
 
-        # Access the server's tool registry
-        if hasattr(self.mcp_server, "_tool_registry"):
-            registry = self.mcp_server._tool_registry
-            for name, tool in registry.tools.items():
+        # Handle different return types
+        if isinstance(tools_result, list):
+            # FastMCP returns list of Tool objects
+            tools = []
+            for tool in tools_result:
                 tools.append({
-                    "name": name,
+                    "name": tool.name,
                     "description": tool.description or "",
-                    "inputSchema": tool.input_schema,
+                    "inputSchema": tool.inputSchema,
                 })
-        elif hasattr(self.mcp_server, "list_tools"):
-            # Use the server's built-in method if available
-            tools_result = await self.mcp_server.list_tools()
-            tools = tools_result.tools if hasattr(tools_result, "tools") else tools_result
+        elif hasattr(tools_result, "tools"):
+            # Wrapped result
+            tools = []
+            for tool in tools_result.tools:
+                tools.append({
+                    "name": tool.name,
+                    "description": tool.description or "",
+                    "inputSchema": tool.inputSchema,
+                })
+        else:
+            tools = []
 
         return {"tools": tools}
 
@@ -232,19 +245,28 @@ class StdioTransport:
         try:
             if hasattr(self.mcp_server, "call_tool"):
                 result = await self.mcp_server.call_tool(tool_name, arguments)
-                # Format result for JSON-RPC response
-                if hasattr(result, "content"):
-                    content = result.content
+
+                # Extract text content from the result
+                # FastMCP returns CallToolResult with content list
+                if hasattr(result, "content") and result.content:
+                    # Get the text from TextContent objects
+                    text_parts = []
+                    for item in result.content:
+                        if hasattr(item, "text"):
+                            text_parts.append(item.text)
+                        elif isinstance(item, dict) and "text" in item:
+                            text_parts.append(item["text"])
+                    text_content = "\n".join(text_parts) if text_parts else str(result.content)
                 elif isinstance(result, dict):
-                    content = result
+                    text_content = json.dumps(result, indent=2)
                 else:
-                    content = {"result": str(result)}
+                    text_content = str(result)
 
                 return {
                     "content": [
-                        {"type": "text", "text": json.dumps(content, indent=2)}
+                        {"type": "text", "text": text_content}
                     ],
-                    "isError": False,
+                    "isError": getattr(result, "isError", False),
                 }
             else:
                 # Fallback: try to call the tool function directly

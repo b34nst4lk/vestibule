@@ -36,6 +36,13 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "packages/bulwark_email/tests"]
+markers = [
+    "integration: Integration tests (stdio/HTTP)",
+    "http: HTTP/SSE transport tests (requires running server)",
+    "slow: Slow running tests",
+]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 
 [build-system]
 requires = ["hatchling"]
