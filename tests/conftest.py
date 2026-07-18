@@ -54,12 +54,12 @@ def http_server(env_config: dict) -> Generator[str, None, None]:
     # Path to main.py
     main_py_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "main.py")
 
+    # Save original environment
+    original_env = {k: v for k, v in os.environ.items()}
+
     # Set up environment
     for key, value in env_config.items():
-        if key == "EMAIL_WHITELIST":
-            os.environ[key] = value
-        else:
-            os.environ[key] = value
+        os.environ[key] = value
 
     # Start server as subprocess
     proc = subprocess.Popen(
@@ -83,6 +83,9 @@ def http_server(env_config: dict) -> Generator[str, None, None]:
     else:
         proc.terminate()
         proc.wait()
+        # Restore environment
+        os.environ.clear()
+        os.environ.update(original_env)
         raise RuntimeError("HTTP server failed to start")
 
     yield base_url
@@ -94,3 +97,7 @@ def http_server(env_config: dict) -> Generator[str, None, None]:
     except subprocess.TimeoutExpired:
         proc.kill()
         proc.wait()
+    finally:
+        # Restore original environment
+        os.environ.clear()
+        os.environ.update(original_env)

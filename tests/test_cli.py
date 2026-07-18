@@ -1,11 +1,18 @@
 """Tests for Bulwark CLI commands."""
 
+import re
 import pytest
 from typer.testing import CliRunner
 
 from bulwark.cli import app, get_version
 
 runner = CliRunner()
+
+
+def strip_ansi(text: str) -> str:
+    """Strip ANSI escape codes from text."""
+    ansi_pattern = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
+    return ansi_pattern.sub('', text)
 
 
 class TestVersionCommand:
@@ -59,9 +66,10 @@ class TestServeCommand:
         """Test serve --help shows options."""
         result = runner.invoke(app, ["serve", "--help"])
         assert result.exit_code == 0
-        assert "--host" in result.stdout
-        assert "--port" in result.stdout
-        assert "--transport" in result.stdout
+        stdout = strip_ansi(result.stdout)
+        assert "--host" in stdout
+        assert "--port" in stdout
+        assert "--transport" in stdout
 
     def test_serve_missing_secrets_exits(self):
         """Test serve exits with error when secrets are missing."""

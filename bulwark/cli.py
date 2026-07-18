@@ -14,6 +14,7 @@ import typer
 from mcp.server.fastmcp import FastMCP
 
 from .plugin_manager import PluginManager
+from .config import Config
 
 app = typer.Typer(help="Bulwark - Plugin-based MCP server")
 
@@ -37,14 +38,27 @@ def version() -> None:
 def serve(
     host: Annotated[str | None, typer.Option("--host", "-h")] = None,
     port: Annotated[int | None, typer.Option("--port", "-p")] = None,
-    transport: Annotated[str, typer.Option("--transport", "-t")] = "stdio",
+    transport: Annotated[str | None, typer.Option("--transport", "-t")] = None,
     config: Annotated[str | None, typer.Option("--config", "-c")] = None,
 ) -> None:
     """
     Start the MCP server with loaded plugins.
 
     By default, runs on stdio transport. Use --transport http-sse for HTTP/SSE.
+    Configuration is loaded from:
+      1. CLI arguments (highest priority)
+      2. .bulwark/config.toml (project config)
+      3. ~/.bulwark/config.toml (user config)
+      4. Built-in defaults
     """
+    # Load configuration from TOML files
+    cfg = Config.load(config)
+
+    # CLI args override config file settings
+    final_host = host or cfg.host
+    final_port = port or cfg.port
+    final_transport = transport or cfg.transport
+
     pm = PluginManager()
     pm.load_all()
 
@@ -68,14 +82,14 @@ def serve(
         sys.exit(1)
 
     # Run the server
-    typer.echo(f"Starting Bulwark server on {transport} transport...")
+    typer.echo(f"Starting Bulwark server on {final_transport} transport...")
 
-    if transport == "stdio":
+    if final_transport == "stdio":
         server.run(transport="stdio")
-    elif transport == "http-sse":
-        server.run(transport="streamable-http", host=host or "127.0.0.1", port=port or 8000)
+    elif final_transport in ("http-sse", "http"):
+        server.run(transport="streamable-http", host=final_host, port=final_port)
     else:
-        typer.echo(f"Unknown transport: {transport}", err=True)
+        typer.echo(f"Unknown transport: {final_transport}", err=True)
         sys.exit(1)
 
 
