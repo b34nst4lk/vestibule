@@ -14,7 +14,7 @@ import typer
 from mcp.server.fastmcp import FastMCP
 
 from .plugin_manager import PluginManager
-from .config import Config
+from .config import Config, Transport
 
 app = typer.Typer(help="Bulwark - Plugin-based MCP server")
 
@@ -65,6 +65,19 @@ def serve(
     if not pm.get_loaded_plugins():
         typer.echo("Warning: No plugins loaded", err=True)
 
+    # Register plugin config schemas for validation
+    schemas = pm.get_plugin_config_schemas()
+    for plugin_name, schema in schemas.items():
+        cfg.register_plugin_schema(plugin_name, schema)
+
+    # Validate configuration (fail-fast)
+    validation_errors = cfg.validate()
+    if validation_errors:
+        typer.echo("Configuration validation failed:", err=True)
+        for error in validation_errors:
+            typer.echo(f"  - {error}", err=True)
+        sys.exit(1)
+
     # Create the MCP server
     server = FastMCP("Bulwark")
 
@@ -72,6 +85,22 @@ def serve(
     pm.register_tools(server)
     pm.register_resources(server)
     pm.register_prompts(server)
+
+    # Initialize plugins with validated configs
+    for plugin_name in pm.get_loaded_plugins():
+        plugin_config = cfg.get_plugin_config(plugin_name)
+        if plugin_name in schemas:
+            # Validate and instantiate the Pydantic model
+            schema = schemas[plugin_name]
+            try:
+                typed_config = schema(**plugin_config)
+                pm.pm.hook.bulwark_init(config=typed_config)
+            except Exception as e:
+                typer.echo(f"Plugin '{plugin_name}' initialization failed: {e}", err=True)
+                sys.exit(1)
+        else:
+            # Plugin has no schema, pass raw config
+            pm.pm.hook.bulwark_init(config=plugin_config if plugin_config else None)
 
     # Validate secrets
     errors = pm.validate_secrets()
@@ -84,9 +113,9 @@ def serve(
     # Run the server
     typer.echo(f"Starting Bulwark server on {final_transport} transport...")
 
-    if final_transport == "stdio":
+    if final_transport == Transport.STDIO:
         server.run(transport="stdio")
-    elif final_transport in ("http-sse", "http"):
+    elif final_transport in (Transport.HTTP_SSE, Transport.HTTP):
         server.run(transport="streamable-http", host=final_host, port=final_port)
     else:
         typer.echo(f"Unknown transport: {final_transport}", err=True)

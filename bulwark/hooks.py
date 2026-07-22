@@ -136,3 +136,51 @@ def bulwark_validate_secrets() -> tuple[str, bool, str]:
             return "email-plugin", True, ""
     """
     pass
+
+
+@hookspec(firstresult=True)
+def bulwark_config_schema() -> type:
+    """
+    Hook spec for plugins to declare their Pydantic config schema.
+
+    Implementations should return a Pydantic BaseModel class that defines
+    the plugin's configuration structure. The server uses this to validate
+    TOML configuration before passing it to the plugin.
+
+    Returns:
+        type: A Pydantic BaseModel class for the plugin's config
+
+    Example:
+        from pydantic import BaseModel
+
+        class EmailPluginConfig(BaseModel):
+            smtp_host: str
+            smtp_port: int = 587
+            sender_email: str
+
+        @hookimpl
+        def bulwark_config_schema():
+            return EmailPluginConfig
+    """
+    pass
+
+
+@hookspec
+def bulwark_init(config: type | None = None) -> None:
+    """
+    Hook spec for plugins to initialize with validated configuration.
+
+    Implementations receive the validated Pydantic config model instance
+    (or None if no config was provided). Use this to set up plugin state
+    with the provided configuration.
+
+    Args:
+        config: The validated Pydantic config model instance, or None
+
+    Example:
+        @hookimpl
+        def bulwark_init(config: EmailPluginConfig):
+            global smtp_host
+            smtp_host = config.smtp_host
+    """
+    pass

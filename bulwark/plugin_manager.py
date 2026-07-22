@@ -5,7 +5,6 @@ Handles plugin discovery, loading, and coordination of hook calls.
 """
 
 import importlib.metadata
-from pathlib import Path
 from typing import Any
 
 import pluggy
@@ -146,3 +145,25 @@ class PluginManager:
     def get_metadata(self, name: str) -> PluginMetadata | None:
         """Get metadata for a loaded plugin."""
         return self._metadata.get(name)
+
+    def get_plugin_config_schemas(self) -> dict[str, type]:
+        """
+        Collect config schemas from all loaded plugins.
+
+        Returns:
+            dict[str, type]: Mapping of plugin_name -> Pydantic schema class
+        """
+        schemas = {}
+
+        # Iterate plugins and call their bulwark_config_schema hook
+        for plugin_name in self._plugins:
+            plugin = self._plugins[plugin_name]
+            if hasattr(plugin, "bulwark_config_schema"):
+                try:
+                    schema = plugin.bulwark_config_schema()
+                    if schema:
+                        schemas[plugin_name] = schema
+                except Exception:
+                    pass  # Plugin doesn't define config schema
+
+        return schemas

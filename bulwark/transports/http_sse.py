@@ -18,6 +18,8 @@ from starlette.types import Receive, Scope, Send
 
 from mcp.server.fastmcp import FastMCP
 
+from .common import handle_tools_list, handle_tools_call
+
 
 # JSON-RPC error codes
 PARSE_ERROR = -32700
@@ -253,32 +255,7 @@ class HTTPSSETransport:
 
     async def _handle_tools_list(self, params: dict[str, Any]) -> dict[str, Any]:
         """Handle the tools/list request."""
-        # Get tools from the FastMCP server using list_tools method
-        tools_result = await self.mcp_server.list_tools()
-
-        # Handle different return types
-        if isinstance(tools_result, list):
-            # FastMCP returns list of Tool objects
-            tools = []
-            for tool in tools_result:
-                tools.append({
-                    "name": tool.name,
-                    "description": tool.description or "",
-                    "inputSchema": tool.inputSchema,
-                })
-        elif hasattr(tools_result, "tools"):
-            # Wrapped result
-            tools = []
-            for tool in tools_result.tools:
-                tools.append({
-                    "name": tool.name,
-                    "description": tool.description or "",
-                    "inputSchema": tool.inputSchema,
-                })
-        else:
-            tools = []
-
-        return {"tools": tools}
+        return await handle_tools_list(self.mcp_server)
 
     async def _handle_tools_call(self, params: dict[str, Any]) -> dict[str, Any]:
         """Handle the tools/call request."""
@@ -291,56 +268,11 @@ class HTTPSSETransport:
         arguments = params.get("arguments", {})
 
         try:
-            if hasattr(self.mcp_server, "call_tool"):
-                result = await self.mcp_server.call_tool(tool_name, arguments)
-
-                # Extract text content from the result
-                # FastMCP returns CallToolResult with content list
-                if hasattr(result, "content") and result.content:
-                    # Get the text from TextContent objects
-                    text_parts = []
-                    for item in result.content:
-                        if hasattr(item, "text"):
-                            text_parts.append(item.text)
-                        elif isinstance(item, dict) and "text" in item:
-                            text_parts.append(item["text"])
-                    text_content = "\n".join(text_parts) if text_parts else str(result.content)
-                elif isinstance(result, dict):
-                    text_content = json.dumps(result, indent=2)
-                else:
-                    text_content = str(result)
-
-                return {
-                    "content": [
-                        {"type": "text", "text": text_content}
-                    ],
-                    "isError": getattr(result, "isError", False),
-                }
-            else:
-                if hasattr(self.mcp_server, "_tool_registry"):
-                    registry = self.mcp_server._tool_registry
-                    if tool_name in registry.tools:
-                        tool = registry.tools[tool_name]
-                        result = await tool.handler(**arguments)
-                        return {
-                            "content": [
-                                {"type": "text", "text": str(result)}
-                            ],
-                            "isError": False,
-                        }
-                raise JSONRPCError(METHOD_NOT_FOUND, f"Tool not found: {tool_name}")
-
+            return await handle_tools_call(self.mcp_server, tool_name, arguments)
         except ToolError as e:
             raise JSONRPCError(METHOD_NOT_FOUND, str(e))
         except TypeError as e:
             raise JSONRPCError(INVALID_PARAMS, f"Invalid arguments: {str(e)}")
-        except Exception as e:
-            return {
-                "content": [
-                    {"type": "text", "text": f"Error: {str(e)}"}
-                ],
-                "isError": True,
-            }
 
     async def _handle_resources_list(self, params: dict[str, Any]) -> dict[str, Any]:
         """Handle the resources/list request."""

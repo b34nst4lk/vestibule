@@ -5,11 +5,34 @@ Handles TOML configuration file loading with multi-level merge:
 CLI --config > .bulwark/config.toml > ~/.bulwark/config.toml > defaults
 """
 
-import os
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
 import tomllib
+
+
+class ConfigValidationError(Exception):
+    """Raised when configuration validation fails."""
+
+    pass
+
+
+class Transport(str, Enum):
+    """Supported transport types."""
+
+    STDIO = "stdio"
+    HTTP_SSE = "http-sse"
+    HTTP = "http"
+
+
+class LogLevel(str, Enum):
+    """Supported log levels."""
+
+    DEBUG = "debug"
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
 
 
 class Config:
@@ -18,9 +41,10 @@ class Config:
     def __init__(self):
         self.host: str = "127.0.0.1"
         self.port: int = 8080
-        self.transport: str = "stdio"
-        self.log_level: str = "info"
+        self.transport: Transport = Transport.STDIO
+        self.log_level: LogLevel = LogLevel.INFO
         self.plugins: dict[str, dict[str, Any]] = {}
+        self._plugin_schemas: dict[str, type] = {}
 
     @classmethod
     def load(cls, config_path: str | None = None) -> "Config":
@@ -78,9 +102,25 @@ class Config:
             if "port" in bulwark_config:
                 result["port"] = bulwark_config["port"]
             if "transport" in bulwark_config:
-                result["transport"] = bulwark_config["transport"]
+                # Convert string to Transport enum
+                transport_val = bulwark_config["transport"]
+                if isinstance(transport_val, str):
+                    try:
+                        result["transport"] = Transport(transport_val.lower())
+                    except ValueError:
+                        result["transport"] = transport_val  # Keep as string, validate later
+                else:
+                    result["transport"] = transport_val
             if "log-level" in bulwark_config:
-                result["log_level"] = bulwark_config["log-level"]
+                # Convert string to LogLevel enum
+                log_level_val = bulwark_config["log-level"]
+                if isinstance(log_level_val, str):
+                    try:
+                        result["log_level"] = LogLevel(log_level_val.lower())
+                    except ValueError:
+                        result["log_level"] = log_level_val  # Keep as string, validate later
+                else:
+                    result["log_level"] = log_level_val
 
         # Extract plugin configs from [tool.bulwark.plugins.<name>]
         if "tool" in data and "bulwark" in data["tool"]:
@@ -97,9 +137,11 @@ class Config:
         if "port" in other:
             self.port = other["port"]
         if "transport" in other:
-            self.transport = other["transport"]
+            val = other["transport"]
+            self.transport = val if isinstance(val, Transport) else Transport(val)
         if "log_level" in other:
-            self.log_level = other["log_level"]
+            val = other["log_level"]
+            self.log_level = val if isinstance(val, LogLevel) else LogLevel(val)
         if "plugins" in other:
             # Merge plugin configs
             for plugin_name, plugin_config in other["plugins"].items():
@@ -110,3 +152,43 @@ class Config:
     def get_plugin_config(self, plugin_name: str) -> dict[str, Any]:
         """Get configuration for a specific plugin."""
         return self.plugins.get(plugin_name, {})
+
+    def register_plugin_schema(self, plugin_name: str, schema: type) -> None:
+        """
+        Register a Pydantic schema for a plugin's configuration.
+
+        Args:
+            plugin_name: The plugin name
+            schema: Pydantic BaseModel class for validation
+        """
+        self._plugin_schemas[plugin_name] = schema
+
+    def validate(self) -> list[str]:
+        """
+        Validate the configuration.
+
+        Returns:
+            list[str]: List of validation error messages (empty if valid)
+
+        Validates:
+        - Port is in valid range (1-65535)
+        - Plugin configs match their registered schemas
+        """
+        errors = []
+
+        # Validate port
+        if not (1 <= self.port <= 65535):
+            errors.append(f"Port must be between 1 and 65535, got {self.port}")
+
+        # Transport and log_level are now enums, validated at assignment time
+
+        # Validate plugin configs against schemas
+        for plugin_name, config in self.plugins.items():
+            if plugin_name in self._plugin_schemas:
+                try:
+                    schema = self._plugin_schemas[plugin_name]
+                    schema(**config)
+                except Exception as e:
+                    errors.append(f"Plugin '{plugin_name}' config validation failed: {e}")
+
+        return errors
