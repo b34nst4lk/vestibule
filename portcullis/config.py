@@ -5,11 +5,10 @@ Handles TOML configuration file loading with multi-level merge:
 CLI --config > .portcullis/config.toml > ~/.portcullis/config.toml > defaults
 """
 
-from enum import Enum
+import tomllib
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
-
-import tomllib
 
 
 class ConfigValidationError(Exception):
@@ -18,7 +17,7 @@ class ConfigValidationError(Exception):
     pass
 
 
-class Transport(str, Enum):
+class Transport(StrEnum):
     """Supported transport types."""
 
     STDIO = "stdio"
@@ -26,7 +25,7 @@ class Transport(str, Enum):
     HTTP = "http"
 
 
-class LogLevel(str, Enum):
+class LogLevel(StrEnum):
     """Supported log levels."""
 
     DEBUG = "debug"

@@ -7,21 +7,22 @@ Implements JSON-RPC 2.0 over stdin/stdout following the MCP specification.
 import asyncio
 import json
 import sys
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 
 from .common import (
-    handle_tools_list,
-    handle_tools_call,
     handle_initialize,
     handle_initialized,
+    handle_ping,
+    handle_prompts_get,
+    handle_prompts_list,
     handle_resources_list,
     handle_resources_read,
-    handle_prompts_list,
-    handle_prompts_get,
-    handle_ping,
+    handle_tools_call,
+    handle_tools_list,
 )
 
 
@@ -95,7 +96,7 @@ class StdioTransport:
                     # EOF - client disconnected
                     break
 
-                line = line.decode('utf-8').strip()
+                line = line.decode("utf-8").strip()
                 if not line:
                     continue
 
@@ -103,9 +104,7 @@ class StdioTransport:
                 try:
                     request = json.loads(line)
                 except json.JSONDecodeError as e:
-                    await self._send_error(
-                        None, PARSE_ERROR, f"Parse error: {str(e)}"
-                    )
+                    await self._send_error(None, PARSE_ERROR, f"Parse error: {str(e)}")
                     continue
 
                 # Process the request
@@ -157,9 +156,7 @@ class StdioTransport:
         # Find and call the handler
         handler = self._request_handlers.get(method)
         if handler is None:
-            raise JSONRPCError(
-                METHOD_NOT_FOUND, f"Method not found: {method}"
-            )
+            raise JSONRPCError(METHOD_NOT_FOUND, f"Method not found: {method}")
 
         # Call the handler
         result = await handler(params)
@@ -191,9 +188,9 @@ class StdioTransport:
         try:
             return await handle_tools_call(self.mcp_server, tool_name, arguments)
         except ToolError as e:
-            raise JSONRPCError(METHOD_NOT_FOUND, str(e))
+            raise JSONRPCError(METHOD_NOT_FOUND, str(e)) from e
         except TypeError as e:
-            raise JSONRPCError(INVALID_PARAMS, f"Invalid arguments: {str(e)}")
+            raise JSONRPCError(INVALID_PARAMS, f"Invalid arguments: {str(e)}") from e
 
     async def _handle_resources_list(self, params: dict[str, Any]) -> dict[str, Any]:
         """Handle the resources/list request."""
@@ -204,7 +201,7 @@ class StdioTransport:
         try:
             return await handle_resources_read(params)
         except ValueError as e:
-            raise JSONRPCError(METHOD_NOT_FOUND, str(e))
+            raise JSONRPCError(METHOD_NOT_FOUND, str(e)) from e
 
     async def _handle_prompts_list(self, params: dict[str, Any]) -> dict[str, Any]:
         """Handle the prompts/list request."""
@@ -215,7 +212,7 @@ class StdioTransport:
         try:
             return await handle_prompts_get(params)
         except ValueError as e:
-            raise JSONRPCError(METHOD_NOT_FOUND, str(e))
+            raise JSONRPCError(METHOD_NOT_FOUND, str(e)) from e
 
     async def _handle_ping(self, params: dict[str, Any]) -> dict[str, Any]:
         """Handle the ping request."""

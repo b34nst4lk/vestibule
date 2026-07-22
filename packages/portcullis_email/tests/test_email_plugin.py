@@ -3,18 +3,16 @@ Tests for the Portcullis Email Whitelisting Plugin.
 """
 
 import os
-import json
-from unittest.mock import patch, MagicMock
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from portcullis_email import (
-    portcullis_register_plugin_info,
-    portcullis_config_schema,
-    portcullis_validate_secrets,
-    portcullis_register_tools,
     EmailPluginConfig,
+    portcullis_config_schema,
+    portcullis_register_plugin_info,
+    portcullis_register_tools,
+    portcullis_validate_secrets,
 )
+
 from portcullis import hooks
 
 
@@ -92,7 +90,10 @@ class TestSecretsValidation:
 
     def test_validate_secrets_with_password(self):
         """Test validation passes when SMTP password is provided."""
-        with patch.dict(os.environ, {"EMAIL_SMTP_PASSWORD": "test_pass"}):
+        with patch.dict(
+            os.environ,
+            {"EMAIL_SMTP_PASSWORD": "test_pass"},  # pragma: allowlist secret
+        ):
             plugin_name, is_valid, error_msg = portcullis_validate_secrets()
 
             assert plugin_name == "email"
@@ -100,10 +101,13 @@ class TestSecretsValidation:
 
     def test_validate_secrets_with_optional_user(self):
         """Test validation passes even without SMTP user (optional)."""
-        with patch.dict(os.environ, {
-            "EMAIL_SMTP_PASSWORD": "test_pass",
-            "EMAIL_SMTP_USER": "test_user"
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "EMAIL_SMTP_PASSWORD": "test_pass",  # pragma: allowlist secret
+                "EMAIL_SMTP_USER": "test_user",  # pragma: allowlist secret
+            },
+        ):
             plugin_name, is_valid, error_msg = portcullis_validate_secrets()
 
             assert plugin_name == "email"
@@ -133,6 +137,7 @@ class TestToolRegistration:
             def decorator(func):
                 registered_tools.append(name or func.__name__)
                 return func
+
             return decorator
 
         mock_server.tool.side_effect = capture_tool
@@ -219,7 +224,6 @@ class TestAddToWhitelistTool:
 
     def test_add_to_whitelist_valid_email(self):
         """Test adding a valid email to whitelist."""
-        from portcullis_email import EmailPluginConfig
 
         whitelist = {"alice": "alice@example.com"}
         new_email = "dave@example.com"

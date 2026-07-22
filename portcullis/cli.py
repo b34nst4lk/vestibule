@@ -13,8 +13,8 @@ from typing import Annotated
 import typer
 from mcp.server.fastmcp import FastMCP
 
-from .plugin_manager import PluginManager
 from .config import Config, Transport
+from .plugin_manager import PluginManager
 
 app = typer.Typer(help="Portcullis - Plugin-based MCP server")
 
@@ -23,6 +23,7 @@ def get_version() -> str:
     """Get the Portcullis version."""
     try:
         import importlib.metadata
+
         return importlib.metadata.version("portcullis")
     except importlib.metadata.PackageNotFoundError:
         return "0.1.0 (dev)"

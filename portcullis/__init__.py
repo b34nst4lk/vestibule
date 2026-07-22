@@ -1,6 +1,6 @@
 """Portcullis - A plugin-based MCP server."""
 
-from .hooks import hookimpl, hookspec, PluginMetadata
+from .hooks import PluginMetadata, hookimpl, hookspec
 from .plugin_manager import PluginManager
 
 __all__ = [

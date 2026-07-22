@@ -4,17 +4,16 @@ Pytest fixtures for Bulwark integration tests.
 Provides fixtures for both stdio and HTTP/SSE transport testing.
 """
 
-import os
-import sys
-import pytest
 import json
-import asyncio
-import time
+import os
 import subprocess
+import sys
+import time
+from collections.abc import Generator
 from pathlib import Path
-from typing import AsyncGenerator, Generator
 
 import httpx
+import pytest
 
 
 @pytest.fixture
@@ -33,18 +32,20 @@ def env_config(data_dir: Path) -> dict:
         **os.environ,
         "EMAIL_SMTP_HOST": "smtp.example.com",
         "EMAIL_SMTP_PORT": "587",
-        "EMAIL_SMTP_PASSWORD": "test_password",
+        "EMAIL_SMTP_PASSWORD": "test_password",  # pragma: allowlist secret
         "EMAIL_SENDER_EMAIL": "sender@example.com",
-        "EMAIL_WHITELIST": json.dumps({
-            "alice": "alice@example.com",
-            "bob": "bob@example.com",
-        }),
+        "EMAIL_WHITELIST": json.dumps(
+            {
+                "alice": "alice@example.com",
+                "bob": "bob@example.com",
+            }
+        ),
     }
     return env
 
 
 @pytest.fixture
-def http_server(env_config: dict) -> Generator[str, None, None]:
+def http_server(env_config: dict) -> Generator[str]:
     """
     Start Bulwark HTTP/SSE server and yield its base URL.
 
@@ -55,7 +56,7 @@ def http_server(env_config: dict) -> Generator[str, None, None]:
     main_py_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "main.py")
 
     # Save original environment
-    original_env = {k: v for k, v in os.environ.items()}
+    original_env = dict(os.environ)
 
     # Set up environment
     for key, value in env_config.items():
@@ -72,7 +73,7 @@ def http_server(env_config: dict) -> Generator[str, None, None]:
     # Wait for server to be ready
     base_url = "http://127.0.0.1:8080"
     max_retries = 50
-    for i in range(max_retries):
+    for _ in range(max_retries):
         try:
             with httpx.Client() as client:
                 response = client.get(f"{base_url}/health", timeout=2.0)

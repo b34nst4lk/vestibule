@@ -11,10 +11,7 @@ import pluggy
 from mcp.server.fastmcp import FastMCP
 
 from . import hooks
-from .hooks import (
-    PluginMetadata,
-    hookimpl,
-)
+from .hooks import PluginMetadata
 
 
 class PluginManager:

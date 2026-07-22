@@ -10,7 +10,6 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-
 # JSON-RPC error codes (shared by both transports)
 PARSE_ERROR = -32700
 INVALID_REQUEST = -32600
@@ -36,20 +35,24 @@ async def handle_tools_list(mcp_server: FastMCP) -> dict[str, Any]:
         # FastMCP returns list of Tool objects
         tools = []
         for tool in tools_result:
-            tools.append({
-                "name": tool.name,
-                "description": tool.description or "",
-                "inputSchema": tool.inputSchema,
-            })
+            tools.append(
+                {
+                    "name": tool.name,
+                    "description": tool.description or "",
+                    "inputSchema": tool.inputSchema,
+                }
+            )
     elif hasattr(tools_result, "tools"):
         # Wrapped result
         tools = []
         for tool in tools_result.tools:
-            tools.append({
-                "name": tool.name,
-                "description": tool.description or "",
-                "inputSchema": tool.inputSchema,
-            })
+            tools.append(
+                {
+                    "name": tool.name,
+                    "description": tool.description or "",
+                    "inputSchema": tool.inputSchema,
+                }
+            )
     else:
         tools = []
 
@@ -93,9 +96,7 @@ async def handle_tools_call(
                 text_content = str(result)
 
             return {
-                "content": [
-                    {"type": "text", "text": text_content}
-                ],
+                "content": [{"type": "text", "text": text_content}],
                 "isError": getattr(result, "isError", False),
             }
         else:
@@ -106,9 +107,7 @@ async def handle_tools_call(
                     tool = registry.tools[tool_name]
                     result = await tool.handler(**arguments)
                     return {
-                        "content": [
-                            {"type": "text", "text": str(result)}
-                        ],
+                        "content": [{"type": "text", "text": str(result)}],
                         "isError": False,
                     }
 
@@ -119,12 +118,10 @@ async def handle_tools_call(
         # Re-raise for caller to handle as JSON-RPC error
         raise e
     except TypeError as e:
-        raise ToolError(f"Invalid arguments: {str(e)}")
+        raise ToolError(f"Invalid arguments: {str(e)}") from e
     except Exception as e:
         return {
-            "content": [
-                {"type": "text", "text": f"Error: {str(e)}"}
-            ],
+            "content": [{"type": "text", "text": f"Error: {str(e)}"}],
             "isError": True,
         }
 

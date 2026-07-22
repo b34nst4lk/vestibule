@@ -242,12 +242,14 @@ class TestConfigMerge:
         config = Config()
         config.plugins["email"] = {"smtp_host": "smtp1.example.com"}
 
-        config._merge({
-            "plugins": {
-                "email": {"smtp_port": 587},
-                "calendar": {"timezone": "UTC"},
+        config._merge(
+            {
+                "plugins": {
+                    "email": {"smtp_port": 587},
+                    "calendar": {"timezone": "UTC"},
+                }
             }
-        })
+        )
 
         assert config.plugins["email"]["smtp_host"] == "smtp1.example.com"
         assert config.plugins["email"]["smtp_port"] == 587

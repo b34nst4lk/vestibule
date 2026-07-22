@@ -28,6 +28,7 @@ Production-ready Portcullis MCP server published to PyPI as 0.1.0 with:
 
 - [Fix HTTP/SSE session memory leak](.scratch/ticket-session-leak.md) — SessionInfo dataclass, 100 session hard limit, 5-min TTL via background task + lazy cleanup, HTTP 429 on limit
 - [Update naming consistency](.scratch/ticket-naming-consistency.md) — All Bulwark → Portcullis, including env var names
+- [Refactor transport duplication](.scratch/ticket-transport-refactor.md) — Extracted 6 shared handlers to common.py, both transports delegate
 
 ## Not yet specified
 
@@ -65,7 +66,7 @@ Production-ready Portcullis MCP server published to PyPI as 0.1.0 with:
 
 ### Code Quality
 
-- [Refactor transport duplication](.scratch/ticket-transport-refactor.md) — Extract shared handlers to common.py
+- ~~[Refactor transport duplication](.scratch/ticket-transport-refactor.md) — Extract shared handlers to common.py~~ ✅ DONE
 - ~~[Fix HTTP/SSE session memory leak](.scratch/ticket-session-leak.md) — Hard limit (100) + TTL (5 min)~~ ✅ DONE
 
 ### Publishing Prep

@@ -16,31 +16,29 @@ import sys
 from mcp.server.fastmcp import FastMCP
 
 from portcullis import PluginManager
-from portcullis.transports.stdio import StdioTransport
 from portcullis.transports.http_sse import HTTPSSETransport
+from portcullis.transports.stdio import StdioTransport
 
 
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(
-        description="Portcullis MCP Server - Plugin-based MCP server"
-    )
+    parser = argparse.ArgumentParser(description="Portcullis MCP Server - Plugin-based MCP server")
     parser.add_argument(
         "--transport",
         choices=["stdio", "http"],
         default="stdio",
-        help="Transport protocol (default: stdio)"
+        help="Transport protocol (default: stdio)",
     )
     parser.add_argument(
         "--host",
         default="127.0.0.1",
-        help="Host to bind to (default: 127.0.0.1, only for http transport)"
+        help="Host to bind to (default: 127.0.0.1, only for http transport)",
     )
     parser.add_argument(
         "--port",
         type=int,
         default=8080,
-        help="Port to listen on (default: 8080, only for http transport)"
+        help="Port to listen on (default: 8080, only for http transport)",
     )
     return parser.parse_args()
 

@@ -6,11 +6,11 @@ Uses subprocess-based approach for direct JSON-RPC testing.
 """
 
 import json
+import queue
 import subprocess
 import threading
-import queue
+
 import pytest
-from typing import Optional
 
 
 class MCPStdioProcess:
@@ -20,7 +20,7 @@ class MCPStdioProcess:
         self.cmd = cmd
         self.env = env
         self.verbose = verbose
-        self.proc: Optional[subprocess.Popen] = None
+        self.proc: subprocess.Popen | None = None
         self.out_queue: queue.Queue = queue.Queue()
         self._id_counter = 0
         self._reader_thread = None
@@ -36,6 +36,7 @@ class MCPStdioProcess:
             text=True,
             env=self.env,
         )
+
         # Pump stdout to queue in background thread
         def pump():
             while not self._stop_reader.is_set():
@@ -44,6 +45,7 @@ class MCPStdioProcess:
                     self.out_queue.put(line.strip())
                 else:
                     break
+
         self._reader_thread = threading.Thread(target=pump, daemon=True)
         self._reader_thread.start()
 
@@ -120,10 +122,7 @@ class TestStdioTransport:
 
     def test_initialize(self, stdio_server: MCPStdioProcess):
         """Test server initialization."""
-        result = stdio_server.jsonrpc_request(
-            "initialize",
-            {"protocolVersion": "2024-11-05"}
-        )
+        result = stdio_server.jsonrpc_request("initialize", {"protocolVersion": "2024-11-05"})
         assert result["jsonrpc"] == "2.0"
         assert "result" in result
         assert result["result"]["serverInfo"]["name"] == "portcullis"
@@ -161,8 +160,7 @@ class TestStdioTransport:
 
         # Use tools/call protocol to invoke plugin tools
         result = stdio_server.jsonrpc_request(
-            "tools/call",
-            {"name": "list_whitelist", "arguments": {}}
+            "tools/call", {"name": "list_whitelist", "arguments": {}}
         )
         print(f"list_whitelist result: {result}")
 
@@ -187,8 +185,8 @@ class TestStdioTransport:
                     "recipient_name": "Unknown",
                     "subject": "Test Subject",
                     "body": "Test body",
-                }
-            }
+                },
+            },
         )
         print(f"send_email result: {result}")
 
@@ -208,8 +206,8 @@ class TestStdioTransport:
                 "arguments": {
                     "name": "Charlie",
                     "email": "charlie@example.com",
-                }
-            }
+                },
+            },
         )
         print(f"add_to_whitelist result: {result}")
 
@@ -229,8 +227,8 @@ class TestStdioTransport:
                 "arguments": {
                     "name": "Invalid",
                     "email": "notanemail",
-                }
-            }
+                },
+            },
         )
         print(f"add_to_whitelist invalid result: {result}")
 

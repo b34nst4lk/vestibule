@@ -3,10 +3,9 @@ Pytest fixtures for the email plugin tests.
 """
 
 import os
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from portcullis import hooks
+import pytest
 
 
 @pytest.fixture
@@ -39,9 +38,9 @@ def env_config(sample_whitelist):
         "EMAIL_SMTP_USE_TLS": "true",
         "EMAIL_SENDER_EMAIL": "sender@example.com",
         "EMAIL_SENDER_NAME": "Test Sender",
-        "EMAIL_SMTP_PASSWORD": "test_password",
-        "EMAIL_SMTP_USER": "test_user",
-        "EMAIL_WHITELIST": json.dumps(sample_whitelist),
+        "EMAIL_SMTP_PASSWORD": "test_password",  # pragma: allowlist secret
+        "EMAIL_SMTP_USER": "test_user",  # pragma: allowlist secret
+        "EMAIL_WHITELIST": json.dumps(sample_whitelist),  # pragma: allowlist secret
         "EMAIL_DEFAULT_RECIPIENT": "alice",
     }
 
@@ -57,7 +56,7 @@ def minimal_env_config():
     env_vars = {
         "EMAIL_SMTP_HOST": "smtp.example.com",
         "EMAIL_SENDER_EMAIL": "sender@example.com",
-        "EMAIL_SMTP_PASSWORD": "test_password",
+        "EMAIL_SMTP_PASSWORD": "test_password",  # pragma: allowlist secret
         "EMAIL_WHITELIST": json.dumps({"alice": "alice@example.com"}),
     }
 

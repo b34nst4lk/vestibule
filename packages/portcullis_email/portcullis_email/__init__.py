@@ -8,11 +8,10 @@ is only sent to trusted addresses.
 
 import os
 import smtplib
-from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from typing import Any
 
-import pluggy
 from pydantic import BaseModel, Field
 
 from portcullis import hooks
@@ -44,13 +43,12 @@ class EmailPluginConfig(BaseModel):
     # Recipient whitelist - maps friendly names to actual emails
     whitelist: dict[str, str] = Field(
         default_factory=dict,
-        description="Mapping of friendly names to email addresses, e.g., {'alice': 'alice@example.com'}"
+        description="Mapping of friendly names to email addresses, e.g., {'alice': 'alice@example.com'}",
     )
 
     # Optional settings
     default_recipient: str = Field(
-        default="",
-        description="Default recipient friendly name if not specified"
+        default="", description="Default recipient friendly name if not specified"
     )
 
 
@@ -93,16 +91,14 @@ def portcullis_validate_secrets() -> tuple[str, bool, str]:
 
     Required env vars (with EMAIL_ prefix):
     - EMAIL_SMTP_PASSWORD: SMTP password or app-specific password
-    - EMAIL_SMTP_USER: SMTP username (optional if sender_email is sufficient)
     """
     smtp_password = os.getenv("EMAIL_SMTP_PASSWORD")
-    smtp_user = os.getenv("EMAIL_SMTP_USER")
 
     if not smtp_password:
         return (
             "email",
             False,
-            "EMAIL_SMTP_PASSWORD is required (SMTP password or app-specific password)"
+            "EMAIL_SMTP_PASSWORD is required (SMTP password or app-specific password)",
         )
 
     # smtp_user is optional - some SMTP servers only need the password
@@ -170,7 +166,9 @@ def portcullis_register_tools(mcp_server: Any) -> None:
         smtp_user = os.getenv("EMAIL_SMTP_USER", config.sender_email)
 
         if not smtp_password:
-            return "Error: SMTP password not configured. Set EMAIL_SMTP_PASSWORD environment variable."
+            return (
+                "Error: SMTP password not configured. Set EMAIL_SMTP_PASSWORD environment variable."
+            )
 
         try:
             # Create the email message
@@ -210,7 +208,9 @@ def portcullis_register_tools(mcp_server: Any) -> None:
         except smtplib.SMTPAuthenticationError:
             return "Error: SMTP authentication failed. Check your credentials (EMAIL_SMTP_USER/EMAIL_SMTP_PASSWORD)."
         except smtplib.SMTPConnectError:
-            return f"Error: Could not connect to SMTP server at {config.smtp_host}:{config.smtp_port}."
+            return (
+                f"Error: Could not connect to SMTP server at {config.smtp_host}:{config.smtp_port}."
+            )
         except Exception as e:
             return f"Error sending email: {str(e)}"
 
@@ -295,9 +295,7 @@ def _get_config_from_env() -> EmailPluginConfig:
     )
 
 
-def _resolve_recipient(
-    name: str, whitelist: dict[str, str]
-) -> str | None:
+def _resolve_recipient(name: str, whitelist: dict[str, str]) -> str | None:
     """
     Resolve a friendly name to an actual email address.
 

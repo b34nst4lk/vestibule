@@ -1,16 +1,15 @@
 """Tests for Portcullis hook specifications and plugin manager."""
 
-import pytest
 from mcp.server.fastmcp import FastMCP
 
 from portcullis.hooks import (
     PluginMetadata,
-    portcullis_register_plugin_info,
-    portcullis_register_tools,
-    portcullis_register_resources,
-    portcullis_register_prompts,
-    portcullis_validate_secrets,
     hookimpl,
+    portcullis_register_plugin_info,
+    portcullis_register_prompts,
+    portcullis_register_resources,
+    portcullis_register_tools,
+    portcullis_validate_secrets,
 )
 from portcullis.plugin_manager import PluginManager
 
@@ -46,7 +45,7 @@ class TestHookSpecs:
     def test_hookspec_markers_exist(self):
         """Test that hookspec and hookimpl markers are defined."""
         assert hookimpl is not None
-        assert hasattr(hookimpl, "__call__")
+        assert callable(hookimpl)
 
     def test_portcullis_register_plugin_info_hook(self):
         """Test that portcullis_register_plugin_info hook spec exists."""

@@ -4,10 +4,8 @@ Integration tests for Bulwark HTTP/SSE transport.
 Tests the Streamable HTTP transport with real HTTP endpoints.
 """
 
-import json
-import pytest
 import httpx
-from mcp.types import CallToolResult, TextContent
+import pytest
 
 
 @pytest.fixture

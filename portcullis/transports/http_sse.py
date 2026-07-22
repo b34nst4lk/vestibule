@@ -8,30 +8,28 @@ for server-to-client streaming.
 import asyncio
 import json
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict
+from typing import Any
 
+from mcp.server.fastmcp import FastMCP
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from starlette.routing import Route
-from starlette.types import Receive, Scope, Send
-
-from mcp.server.fastmcp import FastMCP
 
 from .common import (
-    handle_tools_list,
-    handle_tools_call,
     handle_initialize,
     handle_initialized,
+    handle_ping,
+    handle_prompts_get,
+    handle_prompts_list,
     handle_resources_list,
     handle_resources_read,
-    handle_prompts_list,
-    handle_prompts_get,
-    handle_ping,
+    handle_tools_call,
+    handle_tools_list,
 )
-
 
 # JSON-RPC error codes
 PARSE_ERROR = -32700
@@ -44,6 +42,7 @@ INTERNAL_ERROR = -32603
 @dataclass
 class SessionInfo:
     """Tracks session state and activity for TTL cleanup."""
+
     queue: asyncio.Queue
     created_at: datetime = field(default_factory=datetime.now)
     last_activity: datetime = field(default_factory=datetime.now)
@@ -100,7 +99,7 @@ class HTTPSSETransport:
             "ping": self._handle_ping,
         }
         # Session management: session_id -> SessionInfo (tracks queue + activity)
-        self._sessions: Dict[str, SessionInfo] = {}
+        self._sessions: dict[str, SessionInfo] = {}
         self._session_limit = 100  # Max concurrent sessions
         self._session_ttl_minutes = 5  # TTL in minutes
         self._cleanup_task: asyncio.Task | None = None
@@ -127,7 +126,8 @@ class HTTPSSETransport:
     def _cleanup_expired_sessions(self) -> None:
         """Remove all expired sessions (lazy cleanup)."""
         expired = [
-            session_id for session_id, session in self._sessions.items()
+            session_id
+            for session_id, session in self._sessions.items()
             if session.is_expired(self._session_ttl_minutes)
         ]
         for session_id in expired:
@@ -162,9 +162,7 @@ class HTTPSSETransport:
 
         # Validate JSON-RPC structure
         if not isinstance(body, dict):
-            return self._json_error_response(
-                INVALID_REQUEST, "Request must be an object"
-            )
+            return self._json_error_response(INVALID_REQUEST, "Request must be an object")
 
         if body.get("jsonrpc") != "2.0":
             return self._json_error_response(
@@ -177,7 +175,6 @@ class HTTPSSETransport:
             return self._json_error_response(INVALID_REQUEST, "Missing method")
 
         request_id = body.get("id")
-        params = body.get("params", {})
 
         # Check if client wants SSE streaming (via Accept header or query param)
         accept_header = request.headers.get("accept", "")
@@ -188,12 +185,14 @@ class HTTPSSETransport:
             if not self._check_session_limit():
                 return Response(
                     status_code=429,
-                    content=json.dumps({
-                        "error": {
-                            "code": INTERNAL_ERROR,
-                            "message": f"Session limit reached (max {self._session_limit}). Try again later."
+                    content=json.dumps(
+                        {
+                            "error": {
+                                "code": INTERNAL_ERROR,
+                                "message": f"Session limit reached (max {self._session_limit}). Try again later.",
+                            }
                         }
-                    }),
+                    ),
                     media_type="application/json",
                 )
 
@@ -208,15 +207,16 @@ class HTTPSSETransport:
                 result = await self._process_request(body)
                 await queue.put({"type": "result", "data": result})
             except JSONRPCError as e:
-                await queue.put({
-                    "type": "error",
-                    "data": self._json_error_dict(e.code, e.message, e.data)
-                })
+                await queue.put(
+                    {"type": "error", "data": self._json_error_dict(e.code, e.message, e.data)}
+                )
             except Exception as e:
-                await queue.put({
-                    "type": "error",
-                    "data": self._json_error_dict(INTERNAL_ERROR, f"Internal error: {str(e)}")
-                })
+                await queue.put(
+                    {
+                        "type": "error",
+                        "data": self._json_error_dict(INTERNAL_ERROR, f"Internal error: {str(e)}"),
+                    }
+                )
 
             # Signal end of messages
             await queue.put({"type": "end"})
@@ -268,7 +268,7 @@ class HTTPSSETransport:
                     try:
                         message = await asyncio.wait_for(queue.get(), timeout=60.0)
                         session_info.touch()  # Update activity on successful read
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         # Send keepalive
                         yield ": keepalive\n\n"
                         continue
@@ -335,9 +335,9 @@ class HTTPSSETransport:
         try:
             return await handle_tools_call(self.mcp_server, tool_name, arguments)
         except ToolError as e:
-            raise JSONRPCError(METHOD_NOT_FOUND, str(e))
+            raise JSONRPCError(METHOD_NOT_FOUND, str(e)) from e
         except TypeError as e:
-            raise JSONRPCError(INVALID_PARAMS, f"Invalid arguments: {str(e)}")
+            raise JSONRPCError(INVALID_PARAMS, f"Invalid arguments: {str(e)}") from e
 
     async def _handle_resources_list(self, params: dict[str, Any]) -> dict[str, Any]:
         """Handle the resources/list request."""
@@ -348,7 +348,7 @@ class HTTPSSETransport:
         try:
             return await handle_resources_read(params)
         except ValueError as e:
-            raise JSONRPCError(METHOD_NOT_FOUND, str(e))
+            raise JSONRPCError(METHOD_NOT_FOUND, str(e)) from e
 
     async def _handle_prompts_list(self, params: dict[str, Any]) -> dict[str, Any]:
         """Handle the prompts/list request."""
@@ -359,7 +359,7 @@ class HTTPSSETransport:
         try:
             return await handle_prompts_get(params)
         except ValueError as e:
-            raise JSONRPCError(METHOD_NOT_FOUND, str(e))
+            raise JSONRPCError(METHOD_NOT_FOUND, str(e)) from e
 
     async def _handle_ping(self, params: dict[str, Any]) -> dict[str, Any]:
         """Handle the ping request."""
@@ -368,11 +368,13 @@ class HTTPSSETransport:
     def _json_response(self, request_id: Any, result: Any) -> Response:
         """Create a JSON-RPC success response."""
         return Response(
-            content=json.dumps({
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "result": result,
-            }),
+            content=json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": result,
+                }
+            ),
             media_type="application/json",
         )
 
