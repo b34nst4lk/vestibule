@@ -10,6 +10,7 @@ import sys
 from typing import Any, Callable
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.exceptions import ToolError
 
 from .common import handle_tools_list, handle_tools_call
 
@@ -178,7 +179,7 @@ class StdioTransport:
                 "prompts": {},
             },
             "serverInfo": {
-                "name": "bulwark",
+                "name": "portcullis",
                 "version": "0.1.0",
             },
         }

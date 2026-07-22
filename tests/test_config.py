@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from bulwark.config import Config
+from portcullis.config import Config
 
 
 @pytest.fixture(autouse=True)
@@ -58,17 +58,17 @@ class TestConfigFileLoading:
     """Test loading config from TOML files."""
 
     def test_load_user_config(self):
-        """Test loading from ~/.bulwark/config.toml."""
+        """Test loading from ~/.portcullis/config.toml."""
         with tempfile.TemporaryDirectory() as tmpdir:
             os.chdir(tmpdir)
             os.environ["HOME"] = tmpdir
 
             # Create user config
-            user_config_dir = Path(tmpdir) / ".bulwark"
+            user_config_dir = Path(tmpdir) / ".portcullis"
             user_config_dir.mkdir()
             user_config = user_config_dir / "config.toml"
             user_config.write_text("""
-[tool.bulwark]
+[tool.portcullis]
 host = "0.0.0.0"
 port = 9000
 transport = "stdio"
@@ -82,17 +82,17 @@ log-level = "debug"
             assert config.log_level == "debug"
 
     def test_load_project_config(self):
-        """Test loading from .bulwark/config.toml."""
+        """Test loading from .portcullis/config.toml."""
         with tempfile.TemporaryDirectory() as tmpdir:
             os.chdir(tmpdir)
             os.environ["HOME"] = "/nonexistent"  # Ensure no user config
 
             # Create project config
-            project_config_dir = Path(tmpdir) / ".bulwark"
+            project_config_dir = Path(tmpdir) / ".portcullis"
             project_config_dir.mkdir()
             project_config = project_config_dir / "config.toml"
             project_config.write_text("""
-[tool.bulwark]
+[tool.portcullis]
 host = "127.0.0.1"
 port = 8080
 transport = "http-sse"
@@ -110,21 +110,21 @@ transport = "http-sse"
             os.environ["HOME"] = tmpdir
 
             # Create user config
-            user_config_dir = Path(tmpdir) / ".bulwark"
+            user_config_dir = Path(tmpdir) / ".portcullis"
             user_config_dir.mkdir()
             user_config = user_config_dir / "config.toml"
             user_config.write_text("""
-[tool.bulwark]
+[tool.portcullis]
 host = "user.example.com"
 port = 1111
 """)
 
             # Create project config
-            project_config_dir = Path(tmpdir) / ".bulwark"
+            project_config_dir = Path(tmpdir) / ".portcullis"
             project_config_dir.mkdir(exist_ok=True)
             project_config = project_config_dir / "config.toml"
             project_config.write_text("""
-[tool.bulwark]
+[tool.portcullis]
 host = "project.example.com"
 port = 2222
 """)
@@ -132,7 +132,7 @@ port = 2222
             # Create CLI config
             cli_config = Path(tmpdir) / "cli.toml"
             cli_config.write_text("""
-[tool.bulwark]
+[tool.portcullis]
 host = "cli.example.com"
 port = 3333
 """)
@@ -148,21 +148,21 @@ port = 3333
             os.environ["HOME"] = tmpdir
 
             # Create user config
-            user_config_dir = Path(tmpdir) / ".bulwark"
+            user_config_dir = Path(tmpdir) / ".portcullis"
             user_config_dir.mkdir()
             user_config = user_config_dir / "config.toml"
             user_config.write_text("""
-[tool.bulwark]
+[tool.portcullis]
 host = "user.example.com"
 port = 1111
 """)
 
             # Create project config
-            project_config_dir = Path(tmpdir) / ".bulwark"
+            project_config_dir = Path(tmpdir) / ".portcullis"
             project_config_dir.mkdir(exist_ok=True)
             project_config = project_config_dir / "config.toml"
             project_config.write_text("""
-[tool.bulwark]
+[tool.portcullis]
 host = "project.example.com"
 port = 2222
 """)
@@ -181,23 +181,23 @@ class TestPluginConfig:
             os.chdir(tmpdir)
             os.environ["HOME"] = tmpdir
 
-            config_dir = Path(tmpdir) / ".bulwark"
+            config_dir = Path(tmpdir) / ".portcullis"
             config_dir.mkdir()
             config_file = config_dir / "config.toml"
             config_file.write_text("""
-[tool.bulwark]
+[tool.portcullis]
 host = "127.0.0.1"
 
-[tool.bulwark.plugins.email]
+[tool.portcullis.plugins.email]
 smtp_host = "smtp.gmail.com"
 smtp_port = 587
 sender_email = "test@example.com"
 
-[tool.bulwark.plugins.email.whitelist]
+[tool.portcullis.plugins.email.whitelist]
 alice = "alice@example.com"
 bob = "bob@example.com"
 
-[tool.bulwark.plugins.calendar]
+[tool.portcullis.plugins.calendar]
 timezone = "UTC"
 """)
 

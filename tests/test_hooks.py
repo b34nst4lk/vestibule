@@ -1,18 +1,18 @@
-"""Tests for Bulwark hook specifications and plugin manager."""
+"""Tests for Portcullis hook specifications and plugin manager."""
 
 import pytest
 from mcp.server.fastmcp import FastMCP
 
-from bulwark.hooks import (
+from portcullis.hooks import (
     PluginMetadata,
-    bulwark_register_plugin_info,
-    bulwark_register_tools,
-    bulwark_register_resources,
-    bulwark_register_prompts,
-    bulwark_validate_secrets,
+    portcullis_register_plugin_info,
+    portcullis_register_tools,
+    portcullis_register_resources,
+    portcullis_register_prompts,
+    portcullis_validate_secrets,
     hookimpl,
 )
-from bulwark.plugin_manager import PluginManager
+from portcullis.plugin_manager import PluginManager
 
 
 class TestPluginMetadata:
@@ -48,32 +48,32 @@ class TestHookSpecs:
         assert hookimpl is not None
         assert hasattr(hookimpl, "__call__")
 
-    def test_bulwark_register_plugin_info_hook(self):
-        """Test that bulwark_register_plugin_info hook spec exists."""
-        assert bulwark_register_plugin_info is not None
+    def test_portcullis_register_plugin_info_hook(self):
+        """Test that portcullis_register_plugin_info hook spec exists."""
+        assert portcullis_register_plugin_info is not None
 
-    def test_bulwark_register_tools_hook(self):
-        """Test that bulwark_register_tools hook spec exists."""
-        assert bulwark_register_tools is not None
+    def test_portcullis_register_tools_hook(self):
+        """Test that portcullis_register_tools hook spec exists."""
+        assert portcullis_register_tools is not None
 
-    def test_bulwark_register_resources_hook(self):
-        """Test that bulwark_register_resources hook spec exists."""
-        assert bulwark_register_resources is not None
+    def test_portcullis_register_resources_hook(self):
+        """Test that portcullis_register_resources hook spec exists."""
+        assert portcullis_register_resources is not None
 
-    def test_bulwark_register_prompts_hook(self):
-        """Test that bulwark_register_prompts hook spec exists."""
-        assert bulwark_register_prompts is not None
+    def test_portcullis_register_prompts_hook(self):
+        """Test that portcullis_register_prompts hook spec exists."""
+        assert portcullis_register_prompts is not None
 
-    def test_bulwark_validate_secrets_hook(self):
-        """Test that bulwark_validate_secrets hook spec exists."""
-        assert bulwark_validate_secrets is not None
+    def test_portcullis_validate_secrets_hook(self):
+        """Test that portcullis_validate_secrets hook spec exists."""
+        assert portcullis_validate_secrets is not None
 
 
 class MockPlugin:
     """Mock plugin for testing."""
 
     @hookimpl
-    def bulwark_register_plugin_info(self):
+    def portcullis_register_plugin_info(self):
         meta = PluginMetadata(
             name="mock-plugin",
             version="0.1.0",
@@ -82,26 +82,26 @@ class MockPlugin:
         return "mock-plugin", meta
 
     @hookimpl
-    def bulwark_register_tools(self, mcp_server: FastMCP) -> None:
+    def portcullis_register_tools(self, mcp_server: FastMCP) -> None:
         @mcp_server.tool()
         def mock_tool(x: int) -> int:
             """A mock tool that doubles the input."""
             return x * 2
 
     @hookimpl
-    def bulwark_register_resources(self, mcp_server: FastMCP) -> None:
+    def portcullis_register_resources(self, mcp_server: FastMCP) -> None:
         @mcp_server.resource("mock://config")
         def get_config() -> dict:
             return {"key": "value"}
 
     @hookimpl
-    def bulwark_register_prompts(self, mcp_server: FastMCP) -> None:
+    def portcullis_register_prompts(self, mcp_server: FastMCP) -> None:
         @mcp_server.prompt()
         def mock_prompt(name: str) -> str:
             return f"Hello, {name}!"
 
     @hookimpl
-    def bulwark_validate_secrets(self):
+    def portcullis_validate_secrets(self):
         return "mock", True, ""
 
 
@@ -109,12 +109,12 @@ class MockPluginWithMissingSecrets:
     """Mock plugin that fails secret validation."""
 
     @hookimpl
-    def bulwark_register_plugin_info(self):
+    def portcullis_register_plugin_info(self):
         meta = PluginMetadata(name="broken-plugin", version="0.1.0")
         return "broken-plugin", meta
 
     @hookimpl
-    def bulwark_validate_secrets(self):
+    def portcullis_validate_secrets(self):
         return "broken", False, "MISSING_SECRET is required"
 
 
@@ -204,7 +204,7 @@ class TestPluginManager:
         pm.pm.register(MockPlugin(), "mock")
 
         # Trigger metadata collection directly (firstresult=True returns tuple)
-        result = pm.pm.hook.bulwark_register_plugin_info()
+        result = pm.pm.hook.portcullis_register_plugin_info()
         if result and isinstance(result, tuple):
             plugin_name, meta = result
             pm._metadata[plugin_name] = meta

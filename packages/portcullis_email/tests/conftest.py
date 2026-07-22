@@ -6,7 +6,7 @@ import os
 import pytest
 from unittest.mock import patch, MagicMock
 
-from bulwark import hooks
+from portcullis import hooks
 
 
 @pytest.fixture

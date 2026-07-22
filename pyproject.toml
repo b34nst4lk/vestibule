@@ -1,5 +1,5 @@
 [project]
-name = "bulwark"
+name = "portcullis"
 version = "0.1.0"
 description = "A plugin-based MCP server using pluggy for extensibility"
 readme = "README.md"
@@ -15,17 +15,17 @@ dependencies = [
 ]
 
 [project.scripts]
-bulwark = "bulwark.cli:main"
+portcullis = "portcullis.cli:main"
 
-[project.entry-points."bulwark.plugins"]
+[project.entry-points."portcullis.plugins"]
 # Plugins register here, e.g.:
-# email = "bulwark_email"
+# email = "portcullis_email"
 
 [tool.uv.workspace]
-members = ["packages/bulwark_email"]
+members = ["packages/portcullis_email"]
 
 [tool.uv.sources]
-bulwark = { workspace = true }
+portcullis = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -35,7 +35,7 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "packages/bulwark_email/tests"]
+testpaths = ["tests", "packages/portcullis_email/tests"]
 markers = [
     "integration: Integration tests (stdio/HTTP)",
     "http: HTTP/SSE transport tests (requires running server)",

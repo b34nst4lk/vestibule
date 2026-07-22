@@ -1,17 +1,17 @@
 [project]
-name = "bulwark-email"
+name = "portcullis-email"
 version = "0.1.0"
-description = "Email whitelisting plugin for Bulwark MCP server"
+description = "Email whitelisting plugin for Portcullis MCP server"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "bulwark",
+    "portcullis",
     "mcp[cli]>=1.27,<2",
     "pydantic>=2.0",
 ]
 
-[project.entry-points."bulwark.plugins"]
-email = "bulwark_email"
+[project.entry-points."portcullis.plugins"]
+email = "portcullis_email"
 
 [build-system]
 requires = ["hatchling"]

@@ -1,5 +1,5 @@
 """
-Integration tests for Bulwark stdio transport.
+Integration tests for Portcullis stdio transport.
 
 Tests the full JSON-RPC over stdio stack with real process boundaries.
 Uses subprocess-based approach for direct JSON-RPC testing.
@@ -102,7 +102,7 @@ class MCPStdioProcess:
 
 @pytest.fixture
 def stdio_server(env_config: dict):
-    """Start bulwark server via stdio and yield a client."""
+    """Start portcullis server via stdio and yield a client."""
     client = MCPStdioProcess(
         cmd=["uv", "run", "python", "main.py"],
         env=env_config,
@@ -126,7 +126,7 @@ class TestStdioTransport:
         )
         assert result["jsonrpc"] == "2.0"
         assert "result" in result
-        assert result["result"]["serverInfo"]["name"] == "bulwark"
+        assert result["result"]["serverInfo"]["name"] == "portcullis"
 
     def test_list_tools(self, stdio_server: MCPStdioProcess):
         """Verify email plugin tools are registered."""

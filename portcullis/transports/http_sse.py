@@ -244,7 +244,7 @@ class HTTPSSETransport:
                 "prompts": {},
             },
             "serverInfo": {
-                "name": "bulwark",
+                "name": "portcullis",
                 "version": "0.1.0",
             },
         }

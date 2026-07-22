@@ -1,5 +1,5 @@
 """
-Plugin manager for Bulwark MCP server.
+Plugin manager for Portcullis MCP server.
 
 Handles plugin discovery, loading, and coordination of hook calls.
 """
@@ -20,10 +20,10 @@ from .hooks import (
 class PluginManager:
     """Manages plugin discovery, loading, and hook coordination."""
 
-    ENTRY_POINT_GROUP = "bulwark.plugins"
+    ENTRY_POINT_GROUP = "portcullis.plugins"
 
     def __init__(self):
-        self.pm = pluggy.PluginManager("bulwark")
+        self.pm = pluggy.PluginManager("portcullis")
         self.pm.add_hookspecs(hooks)
         self._plugins: dict[str, Any] = {}
         self._metadata: dict[str, PluginMetadata] = {}
@@ -77,7 +77,7 @@ class PluginManager:
             self._plugins[name] = plugin
 
             # Get plugin metadata (firstresult=True returns tuple directly)
-            metadata_result = self.pm.hook.bulwark_register_plugin_info()
+            metadata_result = self.pm.hook.portcullis_register_plugin_info()
             if metadata_result and isinstance(metadata_result, tuple):
                 plugin_name, meta = metadata_result
                 if isinstance(meta, PluginMetadata):
@@ -94,41 +94,41 @@ class PluginManager:
 
     def register_tools(self, mcp_server: FastMCP) -> None:
         """
-        Call bulwark_register_tools hook on all loaded plugins.
+        Call portcullis_register_tools hook on all loaded plugins.
 
         Args:
             mcp_server: The FastMCP server instance
         """
-        self.pm.hook.bulwark_register_tools(mcp_server=mcp_server)
+        self.pm.hook.portcullis_register_tools(mcp_server=mcp_server)
 
     def register_resources(self, mcp_server: FastMCP) -> None:
         """
-        Call bulwark_register_resources hook on all loaded plugins.
+        Call portcullis_register_resources hook on all loaded plugins.
 
         Args:
             mcp_server: The FastMCP server instance
         """
-        self.pm.hook.bulwark_register_resources(mcp_server=mcp_server)
+        self.pm.hook.portcullis_register_resources(mcp_server=mcp_server)
 
     def register_prompts(self, mcp_server: FastMCP) -> None:
         """
-        Call bulwark_register_prompts hook on all loaded plugins.
+        Call portcullis_register_prompts hook on all loaded plugins.
 
         Args:
             mcp_server: The FastMCP server instance
         """
-        self.pm.hook.bulwark_register_prompts(mcp_server=mcp_server)
+        self.pm.hook.portcullis_register_prompts(mcp_server=mcp_server)
 
     def validate_secrets(self) -> list[tuple[str, str]]:
         """
-        Call bulwark_validate_secrets hook on all loaded plugins.
+        Call portcullis_validate_secrets hook on all loaded plugins.
 
         Returns:
             list[tuple[str, str]]: List of (plugin_name, error_message) for
                 plugins that failed validation
         """
         errors = []
-        results = self.pm.hook.bulwark_validate_secrets()
+        results = self.pm.hook.portcullis_validate_secrets()
 
         for result in results:
             if isinstance(result, tuple) and len(result) == 3:
@@ -155,12 +155,12 @@ class PluginManager:
         """
         schemas = {}
 
-        # Iterate plugins and call their bulwark_config_schema hook
+        # Iterate plugins and call their portcullis_config_schema hook
         for plugin_name in self._plugins:
             plugin = self._plugins[plugin_name]
-            if hasattr(plugin, "bulwark_config_schema"):
+            if hasattr(plugin, "portcullis_config_schema"):
                 try:
-                    schema = plugin.bulwark_config_schema()
+                    schema = plugin.portcullis_config_schema()
                     if schema:
                         schemas[plugin_name] = schema
                 except Exception:

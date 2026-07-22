@@ -2,7 +2,7 @@
 Configuration loading for Bulwark MCP server.
 
 Handles TOML configuration file loading with multi-level merge:
-CLI --config > .bulwark/config.toml > ~/.bulwark/config.toml > defaults
+CLI --config > .portcullis/config.toml > ~/.portcullis/config.toml > defaults
 """
 
 from enum import Enum
@@ -53,8 +53,8 @@ class Config:
 
         Priority (highest to lowest):
         1. CLI --config argument
-        2. .bulwark/config.toml (project config)
-        3. ~/.bulwark/config.toml (user config)
+        2. .portcullis/config.toml (project config)
+        3. ~/.portcullis/config.toml (user config)
         4. Built-in defaults
 
         Args:
@@ -66,8 +66,8 @@ class Config:
         config = cls()
 
         # Load configs in reverse priority order (lowest first, so higher priority overwrites)
-        user_config_path = Path.home() / ".bulwark" / "config.toml"
-        project_config_path = Path.cwd() / ".bulwark" / "config.toml"
+        user_config_path = Path.home() / ".portcullis" / "config.toml"
+        project_config_path = Path.cwd() / ".portcullis" / "config.toml"
 
         config_files = [
             user_config_path,
@@ -93,17 +93,17 @@ class Config:
 
         result = {}
 
-        # Extract server settings from [tool.bulwark]
-        if "tool" in data and "bulwark" in data["tool"]:
-            bulwark_config = data["tool"]["bulwark"]
+        # Extract server settings from [tool.portcullis]
+        if "tool" in data and "portcullis" in data["tool"]:
+            portcullis_config = data["tool"]["portcullis"]
 
-            if "host" in bulwark_config:
-                result["host"] = bulwark_config["host"]
-            if "port" in bulwark_config:
-                result["port"] = bulwark_config["port"]
-            if "transport" in bulwark_config:
+            if "host" in portcullis_config:
+                result["host"] = portcullis_config["host"]
+            if "port" in portcullis_config:
+                result["port"] = portcullis_config["port"]
+            if "transport" in portcullis_config:
                 # Convert string to Transport enum
-                transport_val = bulwark_config["transport"]
+                transport_val = portcullis_config["transport"]
                 if isinstance(transport_val, str):
                     try:
                         result["transport"] = Transport(transport_val.lower())
@@ -111,9 +111,9 @@ class Config:
                         result["transport"] = transport_val  # Keep as string, validate later
                 else:
                     result["transport"] = transport_val
-            if "log-level" in bulwark_config:
+            if "log-level" in portcullis_config:
                 # Convert string to LogLevel enum
-                log_level_val = bulwark_config["log-level"]
+                log_level_val = portcullis_config["log-level"]
                 if isinstance(log_level_val, str):
                     try:
                         result["log_level"] = LogLevel(log_level_val.lower())
@@ -122,11 +122,11 @@ class Config:
                 else:
                     result["log_level"] = log_level_val
 
-        # Extract plugin configs from [tool.bulwark.plugins.<name>]
-        if "tool" in data and "bulwark" in data["tool"]:
-            bulwark_config = data["tool"]["bulwark"]
-            if "plugins" in bulwark_config:
-                result["plugins"] = bulwark_config["plugins"]
+        # Extract plugin configs from [tool.portcullis.plugins.<name>]
+        if "tool" in data and "portcullis" in data["tool"]:
+            portcullis_config = data["tool"]["portcullis"]
+            if "plugins" in portcullis_config:
+                result["plugins"] = portcullis_config["plugins"]
 
         return result
 

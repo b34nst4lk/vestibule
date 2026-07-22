@@ -4,7 +4,7 @@ import re
 import pytest
 from typer.testing import CliRunner
 
-from bulwark.cli import app, get_version
+from portcullis.cli import app, get_version
 
 runner = CliRunner()
 
@@ -22,7 +22,7 @@ class TestVersionCommand:
         """Test version command outputs version string."""
         result = runner.invoke(app, ["version"])
         assert result.exit_code == 0
-        assert "bulwark" in result.stdout
+        assert "portcullis" in result.stdout
         assert "0.1.0" in result.stdout
 
 

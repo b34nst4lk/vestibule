@@ -8,8 +8,8 @@ with the Bulwark server.
 import pluggy
 from mcp.server.fastmcp import FastMCP
 
-hookspec = pluggy.HookspecMarker("bulwark")
-hookimpl = pluggy.HookimplMarker("bulwark")
+hookspec = pluggy.HookspecMarker("portcullis")
+hookimpl = pluggy.HookimplMarker("portcullis")
 
 
 class PluginMetadata:
@@ -29,7 +29,7 @@ class PluginMetadata:
 
 
 @hookspec(firstresult=True)
-def bulwark_register_plugin_info() -> tuple[str, PluginMetadata]:
+def portcullis_register_plugin_info() -> tuple[str, PluginMetadata]:
     """
     Hook spec for plugins to provide their metadata.
 
@@ -41,7 +41,7 @@ def bulwark_register_plugin_info() -> tuple[str, PluginMetadata]:
 
     Example:
         @hookimpl
-        def bulwark_register_plugin_info():
+        def portcullis_register_plugin_info():
             meta = PluginMetadata(
                 name="email-whitelist",
                 version="0.1.0",
@@ -53,7 +53,7 @@ def bulwark_register_plugin_info() -> tuple[str, PluginMetadata]:
 
 
 @hookspec
-def bulwark_register_tools(mcp_server: FastMCP) -> None:
+def portcullis_register_tools(mcp_server: FastMCP) -> None:
     """
     Hook spec for plugins to register MCP tools.
 
@@ -65,7 +65,7 @@ def bulwark_register_tools(mcp_server: FastMCP) -> None:
 
     Example:
         @hookimpl
-        def bulwark_register_tools(mcp_server: FastMCP):
+        def portcullis_register_tools(mcp_server: FastMCP):
             @mcp_server.tool()
             def send_email(recipient: str, body: str) -> str:
                 \"\"\"Send an email to a recipient.\"\"\"
@@ -75,7 +75,7 @@ def bulwark_register_tools(mcp_server: FastMCP) -> None:
 
 
 @hookspec
-def bulwark_register_resources(mcp_server: FastMCP) -> None:
+def portcullis_register_resources(mcp_server: FastMCP) -> None:
     """
     Hook spec for plugins to register MCP resources.
 
@@ -87,7 +87,7 @@ def bulwark_register_resources(mcp_server: FastMCP) -> None:
 
     Example:
         @hookimpl
-        def bulwark_register_resources(mcp_server: FastMCP):
+        def portcullis_register_resources(mcp_server: FastMCP):
             @mcp_server.resource("config://plugin/settings")
             def get_settings() -> dict:
                 return {"key": "value"}
@@ -96,7 +96,7 @@ def bulwark_register_resources(mcp_server: FastMCP) -> None:
 
 
 @hookspec
-def bulwark_register_prompts(mcp_server: FastMCP) -> None:
+def portcullis_register_prompts(mcp_server: FastMCP) -> None:
     """
     Hook spec for plugins to register MCP prompts.
 
@@ -108,7 +108,7 @@ def bulwark_register_prompts(mcp_server: FastMCP) -> None:
 
     Example:
         @hookimpl
-        def bulwark_register_prompts(mcp_server: FastMCP):
+        def portcullis_register_prompts(mcp_server: FastMCP):
             @mcp_server.prompt()
             def email_template(recipient: str) -> str:
                 return f"Draft an email to {recipient}"
@@ -117,7 +117,7 @@ def bulwark_register_prompts(mcp_server: FastMCP) -> None:
 
 
 @hookspec
-def bulwark_validate_secrets() -> tuple[str, bool, str]:
+def portcullis_validate_secrets() -> tuple[str, bool, str]:
     """
     Hook spec for plugins to validate their required secrets.
 
@@ -130,7 +130,7 @@ def bulwark_validate_secrets() -> tuple[str, bool, str]:
 
     Example:
         @hookimpl
-        def bulwark_validate_secrets():
+        def portcullis_validate_secrets():
             if not os.getenv("SMTP_API_KEY"):
                 return "email-plugin", False, "SMTP_API_KEY is required"
             return "email-plugin", True, ""
@@ -139,7 +139,7 @@ def bulwark_validate_secrets() -> tuple[str, bool, str]:
 
 
 @hookspec(firstresult=True)
-def bulwark_config_schema() -> type:
+def portcullis_config_schema() -> type:
     """
     Hook spec for plugins to declare their Pydantic config schema.
 
@@ -159,14 +159,14 @@ def bulwark_config_schema() -> type:
             sender_email: str
 
         @hookimpl
-        def bulwark_config_schema():
+        def portcullis_config_schema():
             return EmailPluginConfig
     """
     pass
 
 
 @hookspec
-def bulwark_init(config: type | None = None) -> None:
+def portcullis_init(config: type | None = None) -> None:
     """
     Hook spec for plugins to initialize with validated configuration.
 
@@ -179,7 +179,7 @@ def bulwark_init(config: type | None = None) -> None:
 
     Example:
         @hookimpl
-        def bulwark_init(config: EmailPluginConfig):
+        def portcullis_init(config: EmailPluginConfig):
             global smtp_host
             smtp_host = config.smtp_host
     """

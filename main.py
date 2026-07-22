@@ -1,5 +1,5 @@
 """
-Bulwark MCP Server - Main Entry Point
+Portcullis MCP Server - Main Entry Point
 
 Runs the MCP server with stdio or HTTP/SSE transport, loading all discovered plugins.
 
@@ -15,15 +15,15 @@ import sys
 
 from mcp.server.fastmcp import FastMCP
 
-from bulwark import PluginManager
-from bulwark.transports.stdio import StdioTransport
-from bulwark.transports.http_sse import HTTPSSETransport
+from portcullis import PluginManager
+from portcullis.transports.stdio import StdioTransport
+from portcullis.transports.http_sse import HTTPSSETransport
 
 
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Bulwark MCP Server - Plugin-based MCP server"
+        description="Portcullis MCP Server - Plugin-based MCP server"
     )
     parser.add_argument(
         "--transport",
@@ -47,7 +47,7 @@ def parse_args() -> argparse.Namespace:
 
 def create_server() -> FastMCP:
     """Create and configure the FastMCP server."""
-    return FastMCP("bulwark")
+    return FastMCP("portcullis")
 
 
 async def run_stdio(mcp_server: FastMCP) -> int:
@@ -87,14 +87,14 @@ async def run_http_sse(mcp_server: FastMCP, host: str, port: int) -> int:
 
 async def main() -> int:
     """
-    Main entry point for the Bulwark MCP server.
+    Main entry point for the Portcullis MCP server.
 
     Returns:
         int: Exit code (0 for success, non-zero for failure)
     """
     args = parse_args()
 
-    print(f"Starting Bulwark MCP Server ({args.transport} transport)...", file=sys.stderr)
+    print(f"Starting Portcullis MCP Server ({args.transport} transport)...", file=sys.stderr)
 
     # Create the MCP server
     mcp_server = create_server()

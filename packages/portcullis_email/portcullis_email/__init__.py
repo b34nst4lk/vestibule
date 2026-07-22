@@ -1,5 +1,5 @@
 """
-Bulwark Email Whitelisting Plugin
+Portcullis Email Whitelisting Plugin
 
 This plugin provides email sending capabilities with recipient whitelisting.
 Only pre-approved recipients can receive emails, ensuring sensitive information
@@ -15,7 +15,7 @@ from typing import Any
 import pluggy
 from pydantic import BaseModel, Field
 
-from bulwark import hooks
+from portcullis import hooks
 
 # -----------------------------------------------------------------------------
 # Configuration Schema
@@ -60,7 +60,7 @@ class EmailPluginConfig(BaseModel):
 
 
 @hooks.hookimpl
-def bulwark_register_plugin_info() -> tuple[str, hooks.PluginMetadata]:
+def portcullis_register_plugin_info() -> tuple[str, hooks.PluginMetadata]:
     """Return plugin metadata."""
     meta = hooks.PluginMetadata(
         name="email",
@@ -76,7 +76,7 @@ def bulwark_register_plugin_info() -> tuple[str, hooks.PluginMetadata]:
 
 
 @hooks.hookimpl
-def bulwark_config_schema() -> type[BaseModel]:
+def portcullis_config_schema() -> type[BaseModel]:
     """Return the Pydantic config schema for this plugin."""
     return EmailPluginConfig
 
@@ -87,7 +87,7 @@ def bulwark_config_schema() -> type[BaseModel]:
 
 
 @hooks.hookimpl
-def bulwark_validate_secrets() -> tuple[str, bool, str]:
+def portcullis_validate_secrets() -> tuple[str, bool, str]:
     """
     Validate that required secrets are available.
 
@@ -115,7 +115,7 @@ def bulwark_validate_secrets() -> tuple[str, bool, str]:
 
 
 @hooks.hookimpl
-def bulwark_register_tools(mcp_server: Any) -> None:
+def portcullis_register_tools(mcp_server: Any) -> None:
     """Register MCP tools with the server."""
 
     @mcp_server.tool()
