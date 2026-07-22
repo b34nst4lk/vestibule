@@ -1,79 +1,33 @@
 ---
-title: Build example email whitelisting plugin
-status: closed
-labels: []
-parent: .scratch/plugin-mcp-server-map.md
+title: Create example plugin for PyPI
+status: open
+labels: [wayfinder:publishing]
+parent: .scratch/portcullis-hardening-map.md
 blocked_by:
-  - .scratch/ticket-hook-specs.md
-  - .scratch/ticket-plugin-structure.md
-  - .scratch/ticket-secrets.md
-resolved: Created bulwark-email plugin with 3 tools (send_email, list_whitelist, add_to_whitelist), env-based secrets, TOML config support, and 20 passing tests
+  - .scratch/ticket-transport-refactor.md
 ---
 
 ## Question
 
-Build the minimal example plugin that demonstrates the system.
+What should the example plugin contain to demonstrate the Portcullis plugin API?
 
-Requirements:
-- Implements the email whitelisting use case
-- Takes a recipient name (e.g., "Alice") and resolves to actual email from a whitelist
-- Exposes an MCP tool for sending emails/invites
-- Uses secrets for SMTP/API credentials
+## Resolution Notes
 
-Output: Working example plugin + documentation.
+**Decision:**
+- Package: portcullis_example
+- Location: packages/portcullis_example/
+- Tools: list_whitelist (returns static list), add_to_whitelist (runtime only)
+- No actual email sending — just whitelist management demo
+- Include pyproject.toml with entry point
+- Include README with plugin author guide
 
-## Resolution
+**Implementation approach:**
+1. Create packages/portcullis_example/ directory structure
+2. Implement hooks: portcullis_register_plugin_info, portcullis_register_tools
+3. Add to uv workspace
+4. Write README for plugin authors
+5. Test installation and loading
 
-### Created Files
+## Next Step
 
-```
-packages/bulwark_email/
-  pyproject.toml              # Package config with entry point
-  bulwark_email/
-    __init__.py               # Hook implementations + tools
-  tests/
-    conftest.py               # Pytest fixtures
-    test_email_plugin.py      # 20 tests
-  README.md                   # User documentation
-```
-
-### Implemented Features
-
-| Feature | Implementation |
-|---------|----------------|
-| **Whitelist** | Dict mapping friendly names → emails via `EMAIL_WHITELIST` env var |
-| **Tools** | `send_email`, `list_whitelist`, `add_to_whitelist` |
-| **Secrets** | `EMAIL_SMTP_PASSWORD`, `EMAIL_SMTP_USER` (optional) |
-| **Config** | Pydantic model with SMTP settings, sender info |
-| **Validation** | `bulwark_validate_secrets` hook checks for required password |
-
-### Example Configuration
-
-**Environment (.env):**
-```bash
-EMAIL_SMTP_HOST=smtp.gmail.com
-EMAIL_SMTP_PASSWORD=app_password
-EMAIL_SENDER_EMAIL=you@gmail.com
-EMAIL_WHITELIST={"alice": "alice@example.com", "bob": "bob@example.com"}
-```
-
-**TOML (.bulwark/config.toml):**
-```toml
-[tool.bulwark.plugins.email]
-smtp_host = "smtp.gmail.com"
-sender_email = "you@gmail.com"
-
-[tool.bulwark.plugins.email.whitelist]
-alice = "alice@example.com"
-bob = "bob@example.com"
-```
-
-### Tests
-
-20 tests covering:
-- Plugin metadata registration
-- Config schema validation
-- Secrets validation
-- Tool registration
-- Recipient lookup (case-insensitive)
-- Whitelist management
+Create the example plugin package based on the email plugin subset. Model it after portcullis_email but simplified.

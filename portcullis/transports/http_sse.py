@@ -8,6 +8,8 @@ for server-to-client streaming.
 import asyncio
 import json
 import uuid
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from typing import Any, Callable, Dict
 
 from starlette.applications import Starlette
@@ -27,6 +29,22 @@ INVALID_REQUEST = -32600
 METHOD_NOT_FOUND = -32601
 INVALID_PARAMS = -32602
 INTERNAL_ERROR = -32603
+
+
+@dataclass
+class SessionInfo:
+    """Tracks session state and activity for TTL cleanup."""
+    queue: asyncio.Queue
+    created_at: datetime = field(default_factory=datetime.now)
+    last_activity: datetime = field(default_factory=datetime.now)
+
+    def is_expired(self, timeout_minutes: int = 5) -> bool:
+        """Check if session has exceeded TTL since last activity."""
+        return datetime.now() - self.last_activity > timedelta(minutes=timeout_minutes)
+
+    def touch(self) -> None:
+        """Update last_activity timestamp."""
+        self.last_activity = datetime.now()
 
 
 class JSONRPCError(Exception):
@@ -71,8 +89,11 @@ class HTTPSSETransport:
             "prompts/get": self._handle_prompts_get,
             "ping": self._handle_ping,
         }
-        # Session management: session_id -> message queue
-        self._sessions: Dict[str, asyncio.Queue] = {}
+        # Session management: session_id -> SessionInfo (tracks queue + activity)
+        self._sessions: Dict[str, SessionInfo] = {}
+        self._session_limit = 100  # Max concurrent sessions
+        self._session_ttl_minutes = 5  # TTL in minutes
+        self._cleanup_task: asyncio.Task | None = None
         self._app = self._create_app()
 
     def _create_app(self) -> Starlette:
@@ -83,6 +104,34 @@ class HTTPSSETransport:
             Route("/health", self._handle_health, methods=["GET"]),
         ]
         return Starlette(routes=routes)
+
+    async def _cleanup_sessions_periodically(self) -> None:
+        """Background task: clean up expired sessions every 60 seconds."""
+        try:
+            while True:
+                await asyncio.sleep(60)
+                self._cleanup_expired_sessions()
+        except asyncio.CancelledError:
+            pass  # Task cancelled during shutdown
+
+    def _cleanup_expired_sessions(self) -> None:
+        """Remove all expired sessions (lazy cleanup)."""
+        expired = [
+            session_id for session_id, session in self._sessions.items()
+            if session.is_expired(self._session_ttl_minutes)
+        ]
+        for session_id in expired:
+            del self._sessions[session_id]
+
+    def _check_session_limit(self) -> bool:
+        """Check if session limit is reached. Returns True if OK to create."""
+        # First clean up any expired sessions (might free up slots)
+        self._cleanup_expired_sessions()
+        return len(self._sessions) < self._session_limit
+
+    async def _sse_error_stream(self, error_message: str):
+        """Generate SSE stream with error message."""
+        yield f"data: {json.dumps({'error': error_message})}\n\n"
 
     async def _handle_health(self, request: Request) -> Response:
         """Health check endpoint."""
@@ -125,10 +174,24 @@ class HTTPSSETransport:
         use_sse = "text/event-stream" in accept_header or request.query_params.get("sse") == "true"
 
         if use_sse and request_id is not None:
+            # Check session limit before creating new session
+            if not self._check_session_limit():
+                return Response(
+                    status_code=429,
+                    content=json.dumps({
+                        "error": {
+                            "code": INTERNAL_ERROR,
+                            "message": f"Session limit reached (max {self._session_limit}). Try again later."
+                        }
+                    }),
+                    media_type="application/json",
+                )
+
             # Create session for SSE streaming
             session_id = str(uuid.uuid4())
             queue: asyncio.Queue = asyncio.Queue()
-            self._sessions[session_id] = queue
+            session_info = SessionInfo(queue=queue)
+            self._sessions[session_id] = session_info
 
             # Process request and queue response
             try:
@@ -185,13 +248,16 @@ class HTTPSSETransport:
                 media_type="text/event-stream",
             )
 
-        queue = self._sessions[session_id]
+        session_info = self._sessions[session_id]
+        queue = session_info.queue
+        session_info.touch()  # Update activity timestamp on SSE connection
 
         async def sse_generator():
             try:
                 while True:
                     try:
                         message = await asyncio.wait_for(queue.get(), timeout=60.0)
+                        session_info.touch()  # Update activity on successful read
                     except asyncio.TimeoutError:
                         # Send keepalive
                         yield ": keepalive\n\n"
@@ -341,6 +407,9 @@ class HTTPSSETransport:
         """Run the HTTP/SSE server using uvicorn."""
         import uvicorn
 
+        # Start background session cleanup task
+        self._cleanup_task = asyncio.create_task(self._cleanup_sessions_periodically())
+
         config = uvicorn.Config(
             self._app,
             host=self.host,
@@ -348,4 +417,13 @@ class HTTPSSETransport:
             log_level="info",
         )
         server = uvicorn.Server(config)
-        await server.serve()
+        try:
+            await server.serve()
+        finally:
+            # Cancel cleanup task on shutdown
+            if self._cleanup_task:
+                self._cleanup_task.cancel()
+                try:
+                    await self._cleanup_task
+                except asyncio.CancelledError:
+                    pass

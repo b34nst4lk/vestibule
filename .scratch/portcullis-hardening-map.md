@@ -1,0 +1,113 @@
+---
+title: Portcullis 0.1.0 Hardening Map
+status: open
+labels: [wayfinder:map]
+destination: Production-ready Portcullis MCP server published to PyPI as 0.1.0 with hardened security (audit logging, rate limiting, approval workflows), consistent UX, and an example plugin
+---
+
+## Destination
+
+Production-ready Portcullis MCP server published to PyPI as 0.1.0 with:
+- Hardened security (audit logging with SecretStr masking, per-tool rate limiting, human-in-the-loop approval workflows)
+- Consistent UX (setup wizard, improved error messages, plugins.md registry)
+- Example plugin (email subset: list_whitelist, add_to_whitelist)
+- Refactored transports (shared handlers in common.py)
+- Session management (100 concurrent max, 5-minute TTL)
+
+## Notes
+
+- Domain: Python MCP server development
+- Key libraries: pluggy, mcp, pydantic, typer, starlette, uvicorn
+- Skills needed: code-review, domain-modeling, grilling, prototype
+- Publishing: PyPI ASAP as 0.1.0 (server + example plugin)
+- Naming: Product is "Portcullis" — update all Bulwark references
+
+## Decisions so far
+
+<!-- Closed tickets will be indexed here as they're resolved -->
+
+- [Fix HTTP/SSE session memory leak](.scratch/ticket-session-leak.md) — SessionInfo dataclass, 100 session hard limit, 5-min TTL via background task + lazy cleanup, HTTP 429 on limit
+
+## Not yet specified
+
+<!-- Fog of war -- decisions we know are coming but can't yet pin down -->
+
+*(All initial decisions have been captured — fog cleared as we grilled)*
+
+## Out of scope
+
+<!-- Work ruled beyond this 0.1.0 destination -->
+
+- Hot-reload of plugins at runtime — explicitly out of scope per original architecture
+- Building a hosted plugin registry website — plugins.md + CLI is the approach
+- Adding new plugin types beyond the email subset example
+- System keychain integration for secrets — .env + wizard is the approach for 0.1.0
+- Runtime version compatibility checking — rely on pip/uv dependency resolution
+
+---
+
+## Frontier Tickets
+
+<!-- Child tickets -- link by name, detail lives in the ticket file -->
+
+### Security Features
+
+- [Implement audit logging infrastructure](.scratch/ticket-audit-logging.md) — Structured JSON to stdout, SecretStr masking
+- [Implement per-tool rate limiting](.scratch/ticket-rate-limiting.md) — Configurable per-tool limits, no session tracking
+- [Implement approval workflow system](.scratch/ticket-approval-workflow.md) — Global approval_mode with per-tool override, MCP prompts
+
+### UX Improvements
+
+- [Create interactive setup wizard](.scratch/ticket-setup-wizard.md) — `portcullis setup` generates .env from prompts
+- [Improve error message consistency](.scratch/ticket-error-messages.md) — Document hybrid approach, rely on MCP defaults
+- [Create plugins.md registry](.scratch/ticket-plugins-registry.md) — Curated markdown for plugin authors to PR
+
+### Code Quality
+
+- [Refactor transport duplication](.scratch/ticket-transport-refactor.md) — Extract shared handlers to common.py
+- ~~[Fix HTTP/SSE session memory leak](.scratch/ticket-session-leak.md) — Hard limit (100) + TTL (5 min)~~ ✅ DONE
+
+### Publishing Prep
+
+- [Update naming consistency](.scratch/ticket-naming-consistency.md) — Change Bulwark → Portcullis everywhere
+- [Fix README PyPI claims](.scratch/ticket-readme-fixes.md) — Update installation for 0.1.0 reality
+- [Create example plugin](.scratch/ticket-example-plugin.md) — portcullis_example with whitelist tools only
+- [Set up PyPI publication workflow](.scratch/ticket-pypi-workflow.md) — GitHub Actions for build/publish
+
+---
+
+## Blocking Dependencies
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Must Complete First                          │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
+│  │ 9. Naming       │  │ 11. Example     │  │ 7. Transport    │ │
+│  │    consistency  │  │     plugin      │  │     refactor    │ │
+│  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘ │
+│           │                    │                    │           │
+│           ▼                    ▼                    ▼           │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │              12. PyPI publication workflow               │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    Can Run In Parallel                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │ 1. Audit     │  │ 2. Rate      │  │ 3. Approval  │          │
+│  │    logging   │  │    limiting  │  │    workflow  │          │
+│  └──────────────┘  └──────────────┘  └──────────────┘          │
+│                                                                   │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │ 4. Setup     │  │ 5. Error     │  │ 6. plugins.md│          │
+│  │    wizard    │  │    messages  │  │    registry  │          │
+│  └──────────────┘  └──────────────┘  └──────────────┘          │
+│                                                                   │
+│  ┌──────────────┐                                               │
+│  │ 8. Session   │                                               │
+│  │    memory    │                                               │
+│  │    leak fix  │                                               │
+│  └──────────────┘                                               │
+└─────────────────────────────────────────────────────────────────┘
+```
