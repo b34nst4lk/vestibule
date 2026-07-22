@@ -20,7 +20,17 @@ from starlette.types import Receive, Scope, Send
 
 from mcp.server.fastmcp import FastMCP
 
-from .common import handle_tools_list, handle_tools_call
+from .common import (
+    handle_tools_list,
+    handle_tools_call,
+    handle_initialize,
+    handle_initialized,
+    handle_resources_list,
+    handle_resources_read,
+    handle_prompts_list,
+    handle_prompts_get,
+    handle_ping,
+)
 
 
 # JSON-RPC error codes
@@ -302,22 +312,11 @@ class HTTPSSETransport:
 
     async def _handle_initialize(self, params: dict[str, Any]) -> dict[str, Any]:
         """Handle the initialize request."""
-        return {
-            "protocolVersion": "2024-11-05",
-            "capabilities": {
-                "tools": {},
-                "resources": {},
-                "prompts": {},
-            },
-            "serverInfo": {
-                "name": "portcullis",
-                "version": "0.1.0",
-            },
-        }
+        return await handle_initialize(params)
 
     async def _handle_initialized(self, params: dict[str, Any]) -> None:
         """Handle the initialized notification."""
-        pass
+        await handle_initialized(params)
 
     async def _handle_tools_list(self, params: dict[str, Any]) -> dict[str, Any]:
         """Handle the tools/list request."""
@@ -342,29 +341,29 @@ class HTTPSSETransport:
 
     async def _handle_resources_list(self, params: dict[str, Any]) -> dict[str, Any]:
         """Handle the resources/list request."""
-        return {"resources": []}
+        return await handle_resources_list(params)
 
     async def _handle_resources_read(self, params: dict[str, Any]) -> dict[str, Any]:
         """Handle the resources/read request."""
-        uri = params.get("uri")
-        if not uri:
-            raise JSONRPCError(INVALID_PARAMS, "Missing resource URI")
-        raise JSONRPCError(METHOD_NOT_FOUND, f"Resource not found: {uri}")
+        try:
+            return await handle_resources_read(params)
+        except ValueError as e:
+            raise JSONRPCError(METHOD_NOT_FOUND, str(e))
 
     async def _handle_prompts_list(self, params: dict[str, Any]) -> dict[str, Any]:
         """Handle the prompts/list request."""
-        return {"prompts": []}
+        return await handle_prompts_list(params)
 
     async def _handle_prompts_get(self, params: dict[str, Any]) -> dict[str, Any]:
         """Handle the prompts/get request."""
-        name = params.get("name")
-        if not name:
-            raise JSONRPCError(INVALID_PARAMS, "Missing prompt name")
-        raise JSONRPCError(METHOD_NOT_FOUND, f"Prompt not found: {name}")
+        try:
+            return await handle_prompts_get(params)
+        except ValueError as e:
+            raise JSONRPCError(METHOD_NOT_FOUND, str(e))
 
     async def _handle_ping(self, params: dict[str, Any]) -> dict[str, Any]:
         """Handle the ping request."""
-        return {}
+        return await handle_ping(params)
 
     def _json_response(self, request_id: Any, result: Any) -> Response:
         """Create a JSON-RPC success response."""

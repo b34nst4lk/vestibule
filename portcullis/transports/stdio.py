@@ -12,7 +12,17 @@ from typing import Any, Callable
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 
-from .common import handle_tools_list, handle_tools_call
+from .common import (
+    handle_tools_list,
+    handle_tools_call,
+    handle_initialize,
+    handle_initialized,
+    handle_resources_list,
+    handle_resources_read,
+    handle_prompts_list,
+    handle_prompts_get,
+    handle_ping,
+)
 
 
 class JSONRPCError(Exception):
@@ -159,59 +169,19 @@ class StdioTransport:
             await self._send_response(request_id, result)
 
     async def _handle_initialize(self, params: dict[str, Any]) -> dict[str, Any]:
-        """
-        Handle the initialize request.
-
-        Args:
-            params: Initialize request parameters
-
-        Returns:
-            Server capabilities and info
-        """
-        # Extract client info
-        client_info = params.get("protocolVersion", "1.0")
-
-        return {
-            "protocolVersion": "2024-11-05",
-            "capabilities": {
-                "tools": {},
-                "resources": {},
-                "prompts": {},
-            },
-            "serverInfo": {
-                "name": "portcullis",
-                "version": "0.1.0",
-            },
-        }
+        """Handle the initialize request."""
+        return await handle_initialize(params)
 
     async def _handle_initialized(self, params: dict[str, Any]) -> None:
-        """
-        Handle the initialized notification.
-
-        This is a notification (no response expected).
-        """
-        # Server is now fully initialized
-        pass
+        """Handle the initialized notification."""
+        await handle_initialized(params)
 
     async def _handle_tools_list(self, params: dict[str, Any]) -> dict[str, Any]:
-        """
-        Handle the tools/list request.
-
-        Returns:
-            List of available tools
-        """
+        """Handle the tools/list request."""
         return await handle_tools_list(self.mcp_server)
 
     async def _handle_tools_call(self, params: dict[str, Any]) -> dict[str, Any]:
-        """
-        Handle the tools/call request.
-
-        Args:
-            params: Tool call parameters with name and arguments
-
-        Returns:
-            Tool execution result
-        """
+        """Handle the tools/call request."""
         tool_name = params.get("name")
         if not tool_name:
             raise JSONRPCError(INVALID_PARAMS, "Missing tool name")
@@ -226,63 +196,30 @@ class StdioTransport:
             raise JSONRPCError(INVALID_PARAMS, f"Invalid arguments: {str(e)}")
 
     async def _handle_resources_list(self, params: dict[str, Any]) -> dict[str, Any]:
-        """
-        Handle the resources/list request.
-
-        Returns:
-            List of available resources
-        """
-        return {"resources": []}
+        """Handle the resources/list request."""
+        return await handle_resources_list(params)
 
     async def _handle_resources_read(self, params: dict[str, Any]) -> dict[str, Any]:
-        """
-        Handle the resources/read request.
-
-        Args:
-            params: Resource read parameters with uri
-
-        Returns:
-            Resource content
-        """
-        uri = params.get("uri")
-        if not uri:
-            raise JSONRPCError(INVALID_PARAMS, "Missing resource URI")
-
-        raise JSONRPCError(METHOD_NOT_FOUND, f"Resource not found: {uri}")
+        """Handle the resources/read request."""
+        try:
+            return await handle_resources_read(params)
+        except ValueError as e:
+            raise JSONRPCError(METHOD_NOT_FOUND, str(e))
 
     async def _handle_prompts_list(self, params: dict[str, Any]) -> dict[str, Any]:
-        """
-        Handle the prompts/list request.
-
-        Returns:
-            List of available prompts
-        """
-        return {"prompts": []}
+        """Handle the prompts/list request."""
+        return await handle_prompts_list(params)
 
     async def _handle_prompts_get(self, params: dict[str, Any]) -> dict[str, Any]:
-        """
-        Handle the prompts/get request.
-
-        Args:
-            params: Prompt get parameters with name
-
-        Returns:
-            Prompt content
-        """
-        name = params.get("name")
-        if not name:
-            raise JSONRPCError(INVALID_PARAMS, "Missing prompt name")
-
-        raise JSONRPCError(METHOD_NOT_FOUND, f"Prompt not found: {name}")
+        """Handle the prompts/get request."""
+        try:
+            return await handle_prompts_get(params)
+        except ValueError as e:
+            raise JSONRPCError(METHOD_NOT_FOUND, str(e))
 
     async def _handle_ping(self, params: dict[str, Any]) -> dict[str, Any]:
-        """
-        Handle the ping request.
-
-        Returns:
-            Empty response (pong)
-        """
-        return {}
+        """Handle the ping request."""
+        return await handle_ping(params)
 
     async def _send_response(self, request_id: Any, result: Any) -> None:
         """

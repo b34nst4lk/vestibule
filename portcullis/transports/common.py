@@ -1,7 +1,7 @@
 """
 Common handlers for MCP transports.
 
-Shared logic for tools/list and tools/call handlers used by both
+Shared logic for JSON-RPC request handlers used by both
 stdio and HTTP/SSE transports.
 """
 
@@ -9,6 +9,14 @@ import json
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+
+
+# JSON-RPC error codes (shared by both transports)
+PARSE_ERROR = -32700
+INVALID_REQUEST = -32600
+METHOD_NOT_FOUND = -32601
+INVALID_PARAMS = -32602
+INTERNAL_ERROR = -32603
 
 
 async def handle_tools_list(mcp_server: FastMCP) -> dict[str, Any]:
@@ -119,3 +127,105 @@ async def handle_tools_call(
             ],
             "isError": True,
         }
+
+
+# -----------------------------------------------------------------------------
+# Shared JSON-RPC Request Handlers
+# -----------------------------------------------------------------------------
+# These handlers are identical in both stdio and http_sse transports.
+# They are pure functions that take an mcp_server and params, returning results.
+
+
+async def handle_initialize(params: dict[str, Any]) -> dict[str, Any]:
+    """
+    Handle the initialize request.
+
+    Args:
+        params: Initialize request parameters (protocolVersion, capabilities, clientInfo)
+
+    Returns:
+        Server capabilities and info
+    """
+    return {
+        "protocolVersion": "2024-11-05",
+        "capabilities": {
+            "tools": {},
+            "resources": {},
+            "prompts": {},
+        },
+        "serverInfo": {
+            "name": "portcullis",
+            "version": "0.1.0",
+        },
+    }
+
+
+async def handle_initialized(params: dict[str, Any]) -> None:
+    """
+    Handle the initialized notification.
+
+    This is a notification (no response expected).
+    """
+    pass
+
+
+async def handle_resources_list(params: dict[str, Any]) -> dict[str, Any]:
+    """
+    Handle the resources/list request.
+
+    Returns:
+        Empty resources list (no resources implemented yet)
+    """
+    return {"resources": []}
+
+
+async def handle_resources_read(params: dict[str, Any]) -> dict[str, Any]:
+    """
+    Handle the resources/read request.
+
+    Args:
+        params: Resource read parameters with uri
+
+    Returns:
+        Raises METHOD_NOT_FOUND error (no resources implemented)
+    """
+    uri = params.get("uri")
+    if not uri:
+        raise ValueError("Missing resource URI")
+    raise ValueError(f"Resource not found: {uri}")
+
+
+async def handle_prompts_list(params: dict[str, Any]) -> dict[str, Any]:
+    """
+    Handle the prompts/list request.
+
+    Returns:
+        Empty prompts list (no prompts implemented yet)
+    """
+    return {"prompts": []}
+
+
+async def handle_prompts_get(params: dict[str, Any]) -> dict[str, Any]:
+    """
+    Handle the prompts/get request.
+
+    Args:
+        params: Prompt get parameters with name
+
+    Returns:
+        Raises METHOD_NOT_FOUND error (no prompts implemented)
+    """
+    name = params.get("name")
+    if not name:
+        raise ValueError("Missing prompt name")
+    raise ValueError(f"Prompt not found: {name}")
+
+
+async def handle_ping(params: dict[str, Any]) -> dict[str, Any]:
+    """
+    Handle the ping request.
+
+    Returns:
+        Empty response (pong)
+    """
+    return {}
