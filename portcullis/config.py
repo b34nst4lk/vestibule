@@ -1,5 +1,5 @@
 """
-Configuration loading for Bulwark MCP server.
+Configuration loading for Portcullis MCP server.
 
 Handles TOML configuration file loading with multi-level merge:
 CLI --config > .portcullis/config.toml > ~/.portcullis/config.toml > defaults
@@ -36,7 +36,7 @@ class LogLevel(str, Enum):
 
 
 class Config:
-    """Bulwark configuration."""
+    """Portcullis configuration."""
 
     def __init__(self):
         self.host: str = "127.0.0.1"

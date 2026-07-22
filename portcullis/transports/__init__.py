@@ -1,4 +1,4 @@
-"""Transport implementations for Bulwark MCP server."""
+"""Transport implementations for Portcullis MCP server."""
 
 from .stdio import StdioTransport
 from .http_sse import HTTPSSETransport

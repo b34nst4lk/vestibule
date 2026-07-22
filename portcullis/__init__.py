@@ -1,4 +1,4 @@
-"""Bulwark - A plugin-based MCP server."""
+"""Portcullis - A plugin-based MCP server."""
 
 from .hooks import hookimpl, hookspec, PluginMetadata
 from .plugin_manager import PluginManager

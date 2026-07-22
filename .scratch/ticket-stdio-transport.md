@@ -23,7 +23,7 @@ Output: Working stdio transport that connects to the plugin system.
 
 ### Implementation
 
-Created `bulwark/transports/stdio.py` with:
+Created `portcullis/transports/stdio.py` with:
 
 | Component | Description |
 |-----------|-------------|
@@ -48,7 +48,7 @@ Created `bulwark/transports/stdio.py` with:
 ### Files Created
 
 ```
-bulwark/transports/
+portcullis/transports/
   __init__.py
   stdio.py              # Main transport implementation
 tests/transports/

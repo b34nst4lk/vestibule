@@ -1,8 +1,8 @@
 """
-Pluggy hook specifications for Bulwark plugin system.
+Pluggy hook specifications for Portcullis plugin system.
 
 Plugins implement these hooks to register MCP tools, resources, and prompts
-with the Bulwark server.
+with the Portcullis server.
 """
 
 import pluggy

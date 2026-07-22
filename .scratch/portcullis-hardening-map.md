@@ -20,7 +20,7 @@ Production-ready Portcullis MCP server published to PyPI as 0.1.0 with:
 - Key libraries: pluggy, mcp, pydantic, typer, starlette, uvicorn
 - Skills needed: code-review, domain-modeling, grilling, prototype
 - Publishing: PyPI ASAP as 0.1.0 (server + example plugin)
-- Naming: Product is "Portcullis" — update all Bulwark references
+- Naming: Product is "Portcullis" — update all [Pp]ortcullis references
 
 ## Decisions so far
 
@@ -69,7 +69,7 @@ Production-ready Portcullis MCP server published to PyPI as 0.1.0 with:
 
 ### Publishing Prep
 
-- [Update naming consistency](.scratch/ticket-naming-consistency.md) — Change Bulwark → Portcullis everywhere
+- [Update naming consistency](.scratch/ticket-naming-consistency.md) — Change [Pp]ortcullis → Portcullis everywhere
 - [Fix README PyPI claims](.scratch/ticket-readme-fixes.md) — Update installation for 0.1.0 reality
 - [Create example plugin](.scratch/ticket-example-plugin.md) — portcullis_example with whitelist tools only
 - [Set up PyPI publication workflow](.scratch/ticket-pypi-workflow.md) — GitHub Actions for build/publish

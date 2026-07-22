@@ -24,7 +24,7 @@ Output: Working HTTP/SSE transport that connects to the same plugin backend as s
 
 ### Implementation
 
-Created `bulwark/transports/http_sse.py` with:
+Created `portcullis/transports/http_sse.py` with:
 
 | Component | Decision |
 |-----------|----------|
@@ -59,7 +59,7 @@ Client connects GET /mcp?session=<id>:
 ### Files Created
 
 ```
-bulwark/transports/http_sse.py    # Main transport implementation
+portcullis/transports/http_sse.py    # Main transport implementation
 tests/transports/test_http_sse.py # 29 tests
 ```
 
