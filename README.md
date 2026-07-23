@@ -1,5 +1,7 @@
 # Portcullis
 
+> **v0.1.0 Beta** — Initial release. Installation via `uv` from source (not yet on PyPI).
+
 A plugin-based MCP (Model Context Protocol) server using `pluggy` for extensibility.
 
 ## Overview
@@ -22,25 +24,23 @@ Think of it as a **gateway between AI and action** — the portcullis controls w
 
 ### Installation
 
-```bash
-# Install the server
-pip install portcullis
-
-# Install plugins
-pip install portcullis-email
-```
-
-### Development Setup
+Portcullis 0.1.0 is not yet published to PyPI. Install from source using `uv`:
 
 ```bash
-# Clone and install with uv
-git clone <repository>
+# Clone the repository
+git clone https://github.com/<your-org>/portcullis.git
 cd portcullis
-uv sync
 
-# Install a plugin in development mode
-uv pip install -e packages/portcullis_email
+# Install the server and workspace plugins
+uv sync
 ```
+
+This installs:
+- `portcullis` — the core MCP server
+- `portcullis-email` — email whitelisting plugin (workspace only)
+- `portcullis-example` — minimal example plugin for plugin authors
+
+> **Note:** The `portcullis-email` plugin is included as a workspace package for testing. A standalone PyPI package will be available in a future release. The `portcullis-example` plugin demonstrates the plugin API and will be published to PyPI alongside the server.
 
 ### Configuration
 
@@ -81,7 +81,7 @@ portcullis serve
 
 ## Available Plugins
 
-### portcullis-email
+### portcullis-email (workspace only)
 
 Email whitelisting plugin that allows sending emails only to pre-approved recipients.
 
@@ -90,10 +90,18 @@ Email whitelisting plugin that allows sending emails only to pre-approved recipi
 - `list_whitelist()` - List all whitelisted recipients
 - `add_to_whitelist(name, email)` - Add a recipient to the runtime whitelist
 
-**Installation:**
-```bash
-pip install portcullis-email
-```
+**Note:** This plugin is included as a workspace package for testing. A standalone PyPI package will be available in a future release.
+
+### portcullis-example
+
+Minimal example plugin demonstrating the Portcullis plugin API. Use this as a template for creating your own plugins.
+
+**Tools:**
+- `list_whitelist()` - List all whitelisted recipients
+- `add_to_whitelist(name, email)` - Add a recipient to the runtime whitelist
+- `remove_from_whitelist(name)` - Remove a recipient from the runtime whitelist
+
+**Note:** This plugin will be published to PyPI alongside Portcullis 0.1.0. See `packages/portcullis_example/README.md` for the plugin author guide.
 
 ## Plugin Development
 

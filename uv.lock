@@ -12,6 +12,7 @@ resolution-markers = [
 members = [
     "portcullis",
     "portcullis-email",
+    "portcullis-example",
 ]
 
 [[package]]
@@ -522,6 +523,23 @@ dev = [
 name = "portcullis-email"
 version = "0.1.0"
 source = { editable = "packages/portcullis_email" }
+dependencies = [
+    { name = "mcp", extra = ["cli"] },
+    { name = "portcullis" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "mcp", extras = ["cli"], specifier = ">=1.27,<2" },
+    { name = "portcullis", editable = "." },
+    { name = "pydantic", specifier = ">=2.0" },
+]
+
+[[package]]
+name = "portcullis-example"
+version = "0.1.0"
+source = { editable = "packages/portcullis_example" }
 dependencies = [
     { name = "mcp", extra = ["cli"] },
     { name = "portcullis" },

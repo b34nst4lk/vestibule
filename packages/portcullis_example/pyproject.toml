@@ -1,0 +1,18 @@
+[project]
+name = "portcullis-example"
+version = "0.1.0"
+description = "Example plugin demonstrating the Portcullis plugin API"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "portcullis",
+    "mcp[cli]>=1.27,<2",
+    "pydantic>=2.0",
+]
+
+[project.entry-points."portcullis.plugins"]
+example = "portcullis_example"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

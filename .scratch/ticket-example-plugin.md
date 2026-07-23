@@ -1,10 +1,11 @@
 ---
 title: Create example plugin for PyPI
-status: open
+status: closed
 labels: [wayfinder:publishing]
 parent: .scratch/portcullis-hardening-map.md
 blocked_by:
   - .scratch/ticket-transport-refactor.md
+resolved: Created portcullis_example package with list_whitelist, add_to_whitelist, remove_from_whitelist tools. In-memory whitelist (no persistence). Includes 13 tests, all passing.
 ---
 
 ## Question
@@ -13,21 +14,28 @@ What should the example plugin contain to demonstrate the Portcullis plugin API?
 
 ## Resolution Notes
 
-**Decision:**
-- Package: portcullis_example
-- Location: packages/portcullis_example/
-- Tools: list_whitelist (returns static list), add_to_whitelist (runtime only)
-- No actual email sending — just whitelist management demo
-- Include pyproject.toml with entry point
-- Include README with plugin author guide
+**Created:**
+- `packages/portcullis_example/portcullis_example/__init__.py` - Plugin implementation
+- `packages/portcullis_example/pyproject.toml` - Package config with entry point
+- `packages/portcullis_example/README.md` - Plugin author guide
+- `packages/portcullis_example/tests/test_example_plugin.py` - 13 tests
 
-**Implementation approach:**
-1. Create packages/portcullis_example/ directory structure
-2. Implement hooks: portcullis_register_plugin_info, portcullis_register_tools
-3. Add to uv workspace
-4. Write README for plugin authors
-5. Test installation and loading
+**Tools:**
+- `list_whitelist()` - List all whitelisted recipients
+- `add_to_whitelist(name, email)` - Add to runtime whitelist
+- `remove_from_whitelist(name)` - Remove from runtime whitelist
+
+**Features:**
+- Demonstrates all required hooks (plugin_info, config_schema, init, register_tools)
+- In-memory whitelist (no persistence) - simple demo
+- Configurable initial_whitelist via TOML config
+- 13 tests, all passing (79 total in suite)
+
+**Files changed:**
+- Created `packages/portcullis_example/` directory
+- Updated `pyproject.toml` - Added workspace member + testpaths
+- Updated `README.md` - Added example plugin section
 
 ## Next Step
 
-Create the example plugin package based on the email plugin subset. Model it after portcullis_email but simplified.
+Example plugin ready for PyPI publication. Next: Create plugins.md registry or PyPI workflow.

@@ -29,6 +29,9 @@ Production-ready Portcullis MCP server published to PyPI as 0.1.0 with:
 - [Fix HTTP/SSE session memory leak](.scratch/ticket-session-leak.md) — SessionInfo dataclass, 100 session hard limit, 5-min TTL via background task + lazy cleanup, HTTP 429 on limit
 - [Update naming consistency](.scratch/ticket-naming-consistency.md) — All Bulwark → Portcullis, including env var names
 - [Refactor transport duplication](.scratch/ticket-transport-refactor.md) — Extracted 6 shared handlers to common.py, both transports delegate
+- [Fix README PyPI claims](.scratch/ticket-readme-fixes.md) — v0.1.0 Beta banner, uv sync installation, clarified workspace plugins
+- [Create example plugin](.scratch/ticket-example-plugin.md) — portcullis_example with 3 tools, 13 tests, plugin author README
+- [Research MCP prompt support](.scratch/research-mcp-prompt-support.md) — Use elicitation (elicitation/create), not prompts; Hermes has full support, Claude Code has bugs
 
 ## Not yet specified
 
@@ -56,7 +59,7 @@ Production-ready Portcullis MCP server published to PyPI as 0.1.0 with:
 
 - [Implement audit logging infrastructure](.scratch/ticket-audit-logging.md) — Structured JSON to stdout, SecretStr masking
 - [Implement per-tool rate limiting](.scratch/ticket-rate-limiting.md) — Configurable per-tool limits, no session tracking
-- [Implement approval workflow system](.scratch/ticket-approval-workflow.md) — Global approval_mode with per-tool override, MCP prompts
+- [Implement approval workflow system](.scratch/ticket-approval-workflow.md) — Global approval_mode with per-tool override, MCP elicitation
 
 ### UX Improvements
 
@@ -64,16 +67,13 @@ Production-ready Portcullis MCP server published to PyPI as 0.1.0 with:
 - [Improve error message consistency](.scratch/ticket-error-messages.md) — Document hybrid approach, rely on MCP defaults
 - [Create plugins.md registry](.scratch/ticket-plugins-registry.md) — Curated markdown for plugin authors to PR
 
-### Code Quality
+### Publishing Prep
 
 - ~~[Refactor transport duplication](.scratch/ticket-transport-refactor.md) — Extract shared handlers to common.py~~ ✅ DONE
 - ~~[Fix HTTP/SSE session memory leak](.scratch/ticket-session-leak.md) — Hard limit (100) + TTL (5 min)~~ ✅ DONE
-
-### Publishing Prep
-
 - ~~[Update naming consistency](.scratch/ticket-naming-consistency.md) — Change Bulwark → Portcullis everywhere~~ ✅ DONE
-- [Fix README PyPI claims](.scratch/ticket-readme-fixes.md) — Update installation for 0.1.0 reality
-- [Create example plugin](.scratch/ticket-example-plugin.md) — portcullis_example with whitelist tools only
+- ~~[Fix README PyPI claims](.scratch/ticket-readme-fixes.md) — Update installation for 0.1.0 reality~~ ✅ DONE
+- ~~[Create example plugin](.scratch/ticket-example-plugin.md) — portcullis_example with whitelist tools only~~ ✅ DONE
 - [Set up PyPI publication workflow](.scratch/ticket-pypi-workflow.md) — GitHub Actions for build/publish
 
 ---
@@ -83,12 +83,12 @@ Production-ready Portcullis MCP server published to PyPI as 0.1.0 with:
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Must Complete First                          │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
-│  │ 9. Naming       │  │ 11. Example     │  │ 7. Transport    │ │
-│  │    consistency  │  │     plugin      │  │     refactor    │ │
-│  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘ │
-│           │                    │                    │           │
-│           ▼                    ▼                    ▼           │
+│  ┌─────────────────┐  ┌─────────────────┐                       │
+│  │ 11. Example     │  │ 8. README PyPI  │                       │
+│  │     plugin      │  │     fixes       │                       │
+│  └────────┬────────┘  └────────┬────────┘                       │
+│           │                    │                                 │
+│           ▼                    ▼                                 │
 │  ┌─────────────────────────────────────────────────────────┐   │
 │  │              12. PyPI publication workflow               │   │
 │  └─────────────────────────────────────────────────────────┘   │
@@ -105,11 +105,5 @@ Production-ready Portcullis MCP server published to PyPI as 0.1.0 with:
 │  │ 4. Setup     │  │ 5. Error     │  │ 6. plugins.md│          │
 │  │    wizard    │  │    messages  │  │    registry  │          │
 │  └──────────────┘  └──────────────┘  └──────────────┘          │
-│                                                                   │
-│  ┌──────────────┐                                               │
-│  │ 8. Session   │                                               │
-│  │    memory    │                                               │
-│  │    leak fix  │                                               │
-│  └──────────────┘                                               │
 └─────────────────────────────────────────────────────────────────┘
 ```

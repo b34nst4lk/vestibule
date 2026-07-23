@@ -22,7 +22,7 @@ portcullis = "portcullis.cli:main"
 # email = "portcullis_email"
 
 [tool.uv.workspace]
-members = ["packages/portcullis_email"]
+members = ["packages/portcullis_email", "packages/portcullis_example"]
 
 [tool.uv.sources]
 portcullis = { workspace = true }
@@ -58,7 +58,7 @@ ignore = [
 known-first-party = ["portcullis"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "packages/portcullis_email/tests"]
+testpaths = ["tests", "packages/portcullis_email/tests", "packages/portcullis_example/tests"]
 markers = [
     "integration: Integration tests (stdio/HTTP)",
     "http: HTTP/SSE transport tests (requires running server)",

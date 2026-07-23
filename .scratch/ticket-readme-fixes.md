@@ -1,9 +1,10 @@
 ---
 title: Fix README PyPI claims
-status: open
+status: closed
 labels: [wayfinder:publishing]
 parent: .scratch/portcullis-hardening-map.md
 blocked_by: []
+resolved: Added v0.1.0 Beta banner, updated installation to uv sync from source, clarified email plugin is workspace-only, removed example plugin section (not yet created)
 ---
 
 ## Question
@@ -12,17 +13,18 @@ What false claims in the README need to be corrected before 0.1.0 publication?
 
 ## Resolution Notes
 
-**Issues to fix:**
-- "pip install portcullis" — not on PyPI yet
-- "pip install portcullis-email" — not published for 0.1.0
-- Update installation instructions to reflect source install
-- Add 0.1.0 disclaimer about beta status
+**Changes made:**
+- Added `> **v0.1.0 Beta** — Initial release. Installation via uv from source (not yet on PyPI).` banner
+- Updated installation section to use `git clone` + `uv sync`
+- Removed `pip install portcullis` and `pip install portcullis-email` references
+- Added note that email plugin is workspace-only, PyPI package coming later
+- Removed example plugin section (not yet created)
 
-**Implementation approach:**
-1. Update Quick Start section with uv/source install instructions
-2. Add note about 0.1.0 beta status
-3. Clarify example plugin is included, email plugin is workspace-only
+**Files changed:**
+- `README.md` — Updated installation, features, and plugin sections
+
+**Commit:** Pending
 
 ## Next Step
 
-Rewrite the README Quick Start and Installation sections to reflect 0.1.0 reality.
+README is ready for 0.1.0. Next: create the example plugin package.
