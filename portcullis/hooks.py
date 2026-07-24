@@ -7,6 +7,9 @@ with the Portcullis server.
 
 import pluggy
 from mcp.server.fastmcp import FastMCP
+from pydantic import SecretStr
+
+__all__ = ["hookspec", "hookimpl", "PluginMetadata", "SecretStr"]
 
 hookspec = pluggy.HookspecMarker("portcullis")
 hookimpl = pluggy.HookimplMarker("portcullis")

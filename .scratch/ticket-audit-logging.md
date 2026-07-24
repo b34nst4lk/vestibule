@@ -1,9 +1,10 @@
 ---
 title: Implement audit logging infrastructure
-status: open
+status: closed
 labels: [wayfinder:security]
 parent: .scratch/portcullis-hardening-map.md
 blocked_by: []
+resolved: Created portcullis/audit.py with JSON logging to stdout, SecretStr masking, 10 tests. Integrated into handle_tools_call in common.py (both transports).
 ---
 
 ## Question
@@ -12,18 +13,49 @@ How should the audit logging infrastructure be implemented to log all tool calls
 
 ## Resolution Notes
 
-**Decision:**
-- Log format: Structured JSON to stdout
-- Fields: tool_name, timestamp, session_id, success/failure, masked_arguments
-- Secret masking: Use Pydantic SecretStr type — plugin authors mark sensitive fields, __repr__/__str__ output "***"
-- No retention built-in — user's infrastructure concern
+**Implementation:**
 
-**Implementation approach:**
-1. Add logging dependency (structlog or stdlib logging with JSON formatter)
-2. Create audit logger module in portcullis/
-3. Wrap tool call handlers to emit audit logs
-4. Add SecretStr import to hooks.py for plugin authors to use
+Created `portcullis/audit.py` with:
+- `log_tool_call()` — Logs tool calls with timestamp, tool_name, arguments, success/failure, result_preview
+- `mask_sensitive_data()` — Recursively masks SecretStr values and sensitive keys
+- JSON format to stdout via dedicated `portcullis.audit` logger
+- Result truncation (500 chars) to avoid log bloat
+
+**Integration:**
+- Modified `handle_tools_call()` in `portcullis/transports/common.py` to emit audit logs
+- Both stdio and HTTP/SSE transports now log all tool calls
+- Session ID supported (currently passed as None — can be extended)
+
+**Plugin author guidance:**
+- Exported `SecretStr` from `portcullis.hooks` and `portcullis.__init__`
+- Plugin authors can use `SecretStr` for sensitive config fields — automatically masked in logs
+
+**Tests:**
+- 10 new tests in `tests/test_audit.py` — all passing
+- Covers SecretStr masking, nested dicts, lists, successful/failed calls, truncation
+
+**Files changed:**
+- `portcullis/audit.py` — New audit logging module
+- `portcullis/transports/common.py` — Integrated audit logging into handle_tools_call
+- `portcullis/transports/stdio.py` — Updated to pass session_id (None for stdio)
+- `portcullis/transports/http_sse.py` — Updated to pass session_id (None for now)
+- `portcullis/hooks.py` — Exported SecretStr for plugin authors
+- `portcullis/__init__.py` — Exported SecretStr in public API
+- `tests/test_audit.py` — 10 tests for audit logging
+
+**Example log output:**
+```json
+{
+  "event_type": "tool_call",
+  "timestamp": "2026-07-24T02:30:00.123456+00:00",
+  "tool_name": "send_email",
+  "arguments": {"recipient": "alice@example.com", "api_key": "***"},
+  "success": true,
+  "result_preview": "Email sent successfully",
+  "session_id": null
+}
+```
 
 ## Next Step
 
-Implement the audit logging module and integrate into both transports. Start with a simple JSON formatter using stdlib logging, then add SecretStr support.
+Audit logging complete. Next: rate limiting or approval workflows.

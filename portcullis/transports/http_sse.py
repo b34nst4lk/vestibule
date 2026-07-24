@@ -333,7 +333,9 @@ class HTTPSSETransport:
         arguments = params.get("arguments", {})
 
         try:
-            return await handle_tools_call(self.mcp_server, tool_name, arguments)
+            # Note: session_id not available at handler level - it's in the POST handler
+            # For now, pass None; audit logging will still work without session tracking
+            return await handle_tools_call(self.mcp_server, tool_name, arguments, session_id=None)
         except ToolError as e:
             raise JSONRPCError(METHOD_NOT_FOUND, str(e)) from e
         except TypeError as e:

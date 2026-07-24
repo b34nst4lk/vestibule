@@ -60,7 +60,10 @@ async def handle_tools_list(mcp_server: FastMCP) -> dict[str, Any]:
 
 
 async def handle_tools_call(
-    mcp_server: FastMCP, tool_name: str, arguments: dict[str, Any]
+    mcp_server: FastMCP,
+    tool_name: str,
+    arguments: dict[str, Any],
+    session_id: str | None = None,
 ) -> dict[str, Any]:
     """
     Handle the tools/call request.
@@ -69,11 +72,14 @@ async def handle_tools_call(
         mcp_server: The FastMCP server instance
         tool_name: Name of the tool to call
         arguments: Arguments to pass to the tool
+        session_id: Optional session identifier for audit logging
 
     Returns:
         Tool execution result with content and isError fields
     """
     from mcp.server.fastmcp.exceptions import ToolError
+
+    from portcullis.audit import log_tool_call
 
     try:
         if hasattr(mcp_server, "call_tool"):
@@ -95,10 +101,21 @@ async def handle_tools_call(
             else:
                 text_content = str(result)
 
-            return {
+            response = {
                 "content": [{"type": "text", "text": text_content}],
                 "isError": getattr(result, "isError", False),
             }
+
+            # Audit log the tool call
+            log_tool_call(
+                tool_name=tool_name,
+                arguments=arguments,
+                success=True,
+                result=text_content,
+                session_id=session_id,
+            )
+
+            return response
         else:
             # Fallback: try to call the tool function directly
             if hasattr(mcp_server, "_tool_registry"):
@@ -106,20 +123,53 @@ async def handle_tools_call(
                 if tool_name in registry.tools:
                     tool = registry.tools[tool_name]
                     result = await tool.handler(**arguments)
-                    return {
+                    response = {
                         "content": [{"type": "text", "text": str(result)}],
                         "isError": False,
                     }
+
+                    # Audit log the tool call
+                    log_tool_call(
+                        tool_name=tool_name,
+                        arguments=arguments,
+                        success=True,
+                        result=str(result),
+                        session_id=session_id,
+                    )
+
+                    return response
 
             # Tool not found - raise error
             raise ToolError(f"Tool not found: {tool_name}")
 
     except ToolError as e:
+        # Audit log the failed tool call
+        log_tool_call(
+            tool_name=tool_name,
+            arguments=arguments,
+            success=False,
+            error=str(e),
+            session_id=session_id,
+        )
         # Re-raise for caller to handle as JSON-RPC error
         raise e
     except TypeError as e:
+        log_tool_call(
+            tool_name=tool_name,
+            arguments=arguments,
+            success=False,
+            error=f"Invalid arguments: {str(e)}",
+            session_id=session_id,
+        )
         raise ToolError(f"Invalid arguments: {str(e)}") from e
     except Exception as e:
+        log_tool_call(
+            tool_name=tool_name,
+            arguments=arguments,
+            success=False,
+            error=str(e),
+            session_id=session_id,
+        )
         return {
             "content": [{"type": "text", "text": f"Error: {str(e)}"}],
             "isError": True,
