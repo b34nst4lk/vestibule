@@ -1,39 +1,34 @@
-# Issue Tracker — Local Markdown
+# Issue Tracker — GitHub Issues
 
-This repo tracks issues as markdown files under `.scratch/`.
+This repo tracks **open** issues as GitHub issues on
+[`b34nst4lk/portcullis`](https://github.com/b34nst4lk/portcullis/issues).
 
-## Creating issues
+## Open tickets
 
-Issues are markdown files with a frontmatter header containing at minimum:
-- `title`: The issue title
-- `status`: One of `open`, `closed`
-- `labels`: (optional) List of triage labels
+Open tickets (including wayfinder maps and their child tickets) live as GitHub
+issues. They use the `wayfinder:*` labels (`wayfinder:map`, `wayfinder:security`,
+`wayfinder:ux`, `wayfinder:publishing`, `wayfinder:code-quality`,
+`wayfinder:research`).
 
-Example:
-```markdown
----
-title: Add user authentication
-status: open
-labels: [needs-triage]
----
+### Parent/child relationships
 
-Issue description goes here.
-```
+GitHub sub-issues are not enabled for this repo, so the parent relationship
+uses a **body convention**: each child ticket's body begins with a `> **Parent:**`
+line linking to its map issue.
 
-## Referencing issues
+### Blocking/dependencies
 
-Issues are referenced by their file path within `.scratch/`, e.g. `.scratch/auth/login-flow.md`.
+GitHub sub-issues (native blocking) are not available. Use the body convention:
+reference the blocking issue by link in the ticket body.
 
-## Blocking/dependencies
+## Closed decision records
 
-Use a `blocked_by:` field in frontmatter to list dependencies:
-```markdown
-blocked_by:
-  - .scratch/auth/user-model.md
-```
+Closed tickets are retained as markdown files under `.scratch/` as a local
+record of decisions made. They are not duplicated on GitHub.
 
-## Resolving issues
+## Resolving an issue
 
-To close an issue:
-1. Change `status: open` to `status: closed` in frontmatter
-2. Add a `resolved:` field with a brief summary of the resolution
+To close a GitHub issue:
+1. Post the resolution as a comment on the issue.
+2. Close the issue.
+3. Append a context pointer to the map's **Decisions so far** section.
