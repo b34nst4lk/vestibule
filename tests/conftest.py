@@ -1,5 +1,5 @@
 """
-Pytest fixtures for Bulwark integration tests.
+Pytest fixtures for Vestibule integration tests.
 
 Provides fixtures for both stdio and HTTP/SSE transport testing.
 """
@@ -26,7 +26,7 @@ def data_dir(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def env_config(data_dir: Path) -> dict:
-    """Environment variables for bulwark server."""
+    """Environment variables for vestibule server."""
     # Start with current environment and override what we need
     env = {
         **os.environ,
@@ -47,7 +47,7 @@ def env_config(data_dir: Path) -> dict:
 @pytest.fixture
 def http_server(env_config: dict) -> Generator[str]:
     """
-    Start Bulwark HTTP/SSE server and yield its base URL.
+    Start Vestibule HTTP/SSE server and yield its base URL.
 
     This fixture starts a real HTTP server for integration testing
     using a subprocess. The server runs on port 8080.

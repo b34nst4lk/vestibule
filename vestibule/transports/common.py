@@ -79,8 +79,8 @@ async def handle_tools_call(
     """
     from mcp.server.fastmcp.exceptions import ToolError
 
-    from portcullis.audit import log_tool_call
-    from portcullis.rate_limit import RateLimitExceeded, check_rate_limit
+    from vestibule.audit import log_tool_call
+    from vestibule.rate_limit import RateLimitExceeded, check_rate_limit
 
     # Enforce per-tool rate limiting before executing the call
     try:
@@ -218,7 +218,7 @@ async def handle_initialize(params: dict[str, Any]) -> dict[str, Any]:
             "prompts": {},
         },
         "serverInfo": {
-            "name": "portcullis",
+            "name": "vestibule",
             "version": "0.1.0",
         },
     }

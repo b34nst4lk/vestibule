@@ -1,6 +1,6 @@
-# Portcullis Example Plugin
+# Vestibule Example Plugin
 
-This is a minimal example plugin demonstrating the Portcullis plugin API. Use it as a starting point for your own plugins.
+This is a minimal example plugin demonstrating the Vestibule plugin API. Use it as a starting point for your own plugins.
 
 ## Features
 
@@ -25,10 +25,10 @@ uv sync  # Installs from workspace
 
 ## Configuration
 
-Add to your `.portcullis/config.toml`:
+Add to your `.vestibule/config.toml`:
 
 ```toml
-[tool.portcullis.plugins.example]
+[tool.vestibule.plugins.example]
 initial_whitelist = { alice = "alice@example.com", bob = "bob@example.com" }
 ```
 
@@ -37,8 +37,8 @@ initial_whitelist = { alice = "alice@example.com", bob = "bob@example.com" }
 1. **Create the package structure:**
 
 ```
-portcullis_my_plugin/
-  portcullis_my_plugin/
+vestibule_my_plugin/
+  vestibule_my_plugin/
     __init__.py
   pyproject.toml
   README.md
@@ -47,18 +47,18 @@ portcullis_my_plugin/
 2. **Add entry point to `pyproject.toml`:**
 
 ```toml
-[project.entry-points."portcullis.plugins"]
-my-plugin = "portcullis_my_plugin"
+[project.entry-points."vestibule.plugins"]
+my-plugin = "vestibule_my_plugin"
 ```
 
 3. **Implement the hooks in `__init__.py`:**
 
 ```python
-from portcullis import hooks
+from vestibule import hooks
 from pydantic import BaseModel
 
 @hooks.hookimpl
-def portcullis_register_plugin_info():
+def vestibule_register_plugin_info():
     return "my-plugin", hooks.PluginMetadata(
         name="my-plugin",
         version="1.0.0",
@@ -66,11 +66,11 @@ def portcullis_register_plugin_info():
     )
 
 @hooks.hookimpl
-def portcullis_config_schema():
+def vestibule_config_schema():
     return MyPluginConfig  # Your Pydantic model
 
 @hooks.hookimpl
-def portcullis_register_tools(mcp_server):
+def vestibule_register_tools(mcp_server):
     @mcp_server.tool()
     def my_tool(arg: str) -> str:
         return f"Result: {arg}"
@@ -86,12 +86,12 @@ uv pip install -e .
 
 | Hook | Purpose | First Result |
 |------|---------|--------------|
-| `portcullis_register_plugin_info` | Return plugin metadata | Yes |
-| `portcullis_config_schema` | Return Pydantic config schema | Yes |
-| `portcullis_init` | Initialize with validated config | No |
-| `portcullis_register_tools` | Register MCP tools | No |
-| `portcullis_register_resources` | Register MCP resources | No |
-| `portcullis_register_prompts` | Register MCP prompts | No |
-| `portcullis_validate_secrets` | Validate required secrets | No |
+| `vestibule_register_plugin_info` | Return plugin metadata | Yes |
+| `vestibule_config_schema` | Return Pydantic config schema | Yes |
+| `vestibule_init` | Initialize with validated config | No |
+| `vestibule_register_tools` | Register MCP tools | No |
+| `vestibule_register_resources` | Register MCP resources | No |
+| `vestibule_register_prompts` | Register MCP prompts | No |
+| `vestibule_validate_secrets` | Validate required secrets | No |
 
-For more details, see the main [Portcullis documentation](../../README.md).
+For more details, see the main [Vestibule documentation](../../README.md).

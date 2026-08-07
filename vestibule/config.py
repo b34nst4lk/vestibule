@@ -1,8 +1,8 @@
 """
-Configuration loading for Portcullis MCP server.
+Configuration loading for Vestibule MCP server.
 
 Handles TOML configuration file loading with multi-level merge:
-CLI --config > .portcullis/config.toml > ~/.portcullis/config.toml > defaults
+CLI --config > .vestibule/config.toml > ~/.vestibule/config.toml > defaults
 """
 
 import tomllib
@@ -35,7 +35,7 @@ class LogLevel(StrEnum):
 
 
 class Config:
-    """Portcullis configuration."""
+    """Vestibule configuration."""
 
     def __init__(self):
         self.host: str = "127.0.0.1"
@@ -53,8 +53,8 @@ class Config:
 
         Priority (highest to lowest):
         1. CLI --config argument
-        2. .portcullis/config.toml (project config)
-        3. ~/.portcullis/config.toml (user config)
+        2. .vestibule/config.toml (project config)
+        3. ~/.vestibule/config.toml (user config)
         4. Built-in defaults
 
         Args:
@@ -66,8 +66,8 @@ class Config:
         config = cls()
 
         # Load configs in reverse priority order (lowest first, so higher priority overwrites)
-        user_config_path = Path.home() / ".portcullis" / "config.toml"
-        project_config_path = Path.cwd() / ".portcullis" / "config.toml"
+        user_config_path = Path.home() / ".vestibule" / "config.toml"
+        project_config_path = Path.cwd() / ".vestibule" / "config.toml"
 
         config_files = [
             user_config_path,
@@ -93,17 +93,17 @@ class Config:
 
         result = {}
 
-        # Extract server settings from [tool.portcullis]
-        if "tool" in data and "portcullis" in data["tool"]:
-            portcullis_config = data["tool"]["portcullis"]
+        # Extract server settings from [tool.vestibule]
+        if "tool" in data and "vestibule" in data["tool"]:
+            vestibule_config = data["tool"]["vestibule"]
 
-            if "host" in portcullis_config:
-                result["host"] = portcullis_config["host"]
-            if "port" in portcullis_config:
-                result["port"] = portcullis_config["port"]
-            if "transport" in portcullis_config:
+            if "host" in vestibule_config:
+                result["host"] = vestibule_config["host"]
+            if "port" in vestibule_config:
+                result["port"] = vestibule_config["port"]
+            if "transport" in vestibule_config:
                 # Convert string to Transport enum
-                transport_val = portcullis_config["transport"]
+                transport_val = vestibule_config["transport"]
                 if isinstance(transport_val, str):
                     try:
                         result["transport"] = Transport(transport_val.lower())
@@ -111,9 +111,9 @@ class Config:
                         result["transport"] = transport_val  # Keep as string, validate later
                 else:
                     result["transport"] = transport_val
-            if "log-level" in portcullis_config:
+            if "log-level" in vestibule_config:
                 # Convert string to LogLevel enum
-                log_level_val = portcullis_config["log-level"]
+                log_level_val = vestibule_config["log-level"]
                 if isinstance(log_level_val, str):
                     try:
                         result["log_level"] = LogLevel(log_level_val.lower())
@@ -122,17 +122,17 @@ class Config:
                 else:
                     result["log_level"] = log_level_val
 
-        # Extract plugin configs from [tool.portcullis.plugins.<name>]
-        if "tool" in data and "portcullis" in data["tool"]:
-            portcullis_config = data["tool"]["portcullis"]
-            if "plugins" in portcullis_config:
-                result["plugins"] = portcullis_config["plugins"]
+        # Extract plugin configs from [tool.vestibule.plugins.<name>]
+        if "tool" in data and "vestibule" in data["tool"]:
+            vestibule_config = data["tool"]["vestibule"]
+            if "plugins" in vestibule_config:
+                result["plugins"] = vestibule_config["plugins"]
 
-        # Extract rate limits from [tool.portcullis.rate_limits]
-        if "tool" in data and "portcullis" in data["tool"]:
-            portcullis_config = data["tool"]["portcullis"]
-            if "rate_limits" in portcullis_config:
-                result["rate_limits"] = portcullis_config["rate_limits"]
+        # Extract rate limits from [tool.vestibule.rate_limits]
+        if "tool" in data and "vestibule" in data["tool"]:
+            vestibule_config = data["tool"]["vestibule"]
+            if "rate_limits" in vestibule_config:
+                result["rate_limits"] = vestibule_config["rate_limits"]
 
         return result
 

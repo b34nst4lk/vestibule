@@ -1,5 +1,5 @@
 """
-Portcullis MCP Server - Main Entry Point
+Vestibule MCP Server - Main Entry Point
 
 Runs the MCP server with stdio or HTTP/SSE transport, loading all discovered plugins.
 
@@ -15,14 +15,14 @@ import sys
 
 from mcp.server.fastmcp import FastMCP
 
-from portcullis import PluginManager
-from portcullis.transports.http_sse import HTTPSSETransport
-from portcullis.transports.stdio import StdioTransport
+from vestibule import PluginManager
+from vestibule.transports.http_sse import HTTPSSETransport
+from vestibule.transports.stdio import StdioTransport
 
 
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description="Portcullis MCP Server - Plugin-based MCP server")
+    parser = argparse.ArgumentParser(description="Vestibule MCP Server - Plugin-based MCP server")
     parser.add_argument(
         "--transport",
         choices=["stdio", "http"],
@@ -45,7 +45,7 @@ def parse_args() -> argparse.Namespace:
 
 def create_server() -> FastMCP:
     """Create and configure the FastMCP server."""
-    return FastMCP("portcullis")
+    return FastMCP("vestibule")
 
 
 async def run_stdio(mcp_server: FastMCP) -> int:
@@ -85,14 +85,14 @@ async def run_http_sse(mcp_server: FastMCP, host: str, port: int) -> int:
 
 async def main() -> int:
     """
-    Main entry point for the Portcullis MCP server.
+    Main entry point for the Vestibule MCP server.
 
     Returns:
         int: Exit code (0 for success, non-zero for failure)
     """
     args = parse_args()
 
-    print(f"Starting Portcullis MCP Server ({args.transport} transport)...", file=sys.stderr)
+    print(f"Starting Vestibule MCP Server ({args.transport} transport)...", file=sys.stderr)
 
     # Create the MCP server
     mcp_server = create_server()

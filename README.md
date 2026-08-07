@@ -1,4 +1,4 @@
-# Portcullis
+# Vestibule
 
 > **v0.1.0 Beta** — Initial release. Installation via `uv` from source (not yet on PyPI).
 
@@ -6,9 +6,9 @@ A plugin-based MCP (Model Context Protocol) server using `pluggy` for extensibil
 
 ## Overview
 
-Portcullis provides a secure way to expose custom tools to AI agents while keeping sensitive information (credentials, email addresses, API keys) hidden from the agent. Plugins implement email whitelisting, calendar access, and other sensitive operations behind clean tool interfaces.
+Vestibule provides a secure way to expose custom tools to AI agents while keeping sensitive information (credentials, email addresses, API keys) hidden from the agent. Plugins implement email whitelisting, calendar access, and other sensitive operations behind clean tool interfaces.
 
-Think of it as a **gateway between AI and action** — the portcullis controls what passes through, ensuring only safe, validated operations proceed.
+Think of it as a **gateway between AI and action** — the vestibule controls what passes through, ensuring only safe, validated operations proceed.
 
 ## Features
 
@@ -24,39 +24,39 @@ Think of it as a **gateway between AI and action** — the portcullis controls w
 
 ### Installation
 
-Portcullis 0.1.0 is not yet published to PyPI. Install from source using `uv`:
+Vestibule 0.1.0 is not yet published to PyPI. Install from source using `uv`:
 
 ```bash
 # Clone the repository
-git clone https://github.com/<your-org>/portcullis.git
-cd portcullis
+git clone https://github.com/b34nst4lk/vestibule.git
+cd vestibule
 
 # Install the server and workspace plugins
 uv sync
 ```
 
 This installs:
-- `portcullis` — the core MCP server
-- `portcullis-email` — email whitelisting plugin (workspace only)
-- `portcullis-example` — minimal example plugin for plugin authors
+- `vestibule` — the core MCP server
+- `vestibule-email` — email whitelisting plugin (workspace only)
+- `vestibule-example` — minimal example plugin for plugin authors
 
-> **Note:** The `portcullis-email` plugin is included as a workspace package for testing. A standalone PyPI package will be available in a future release. The `portcullis-example` plugin demonstrates the plugin API and will be published to PyPI alongside the server.
+> **Note:** The `vestibule-email` plugin is included as a workspace package for testing. A standalone PyPI package will be available in a future release. The `vestibule-example` plugin demonstrates the plugin API but is **not** published to PyPI.
 
 ### Configuration
 
-Create `.portcullis/config.toml`:
+Create `.vestibule/config.toml`:
 
 ```toml
-[tool.portcullis]
+[tool.vestibule]
 host = "localhost"
 port = 8080
 transport = "stdio"
 
-[tool.portcullis.plugins.email]
+[tool.vestibule.plugins.email]
 smtp_host = "smtp.gmail.com"
 sender_email = "you@gmail.com"
 
-[tool.portcullis.plugins.email.whitelist]
+[tool.vestibule.plugins.email.whitelist]
 alice = "alice@example.com"
 bob = "bob@example.com"
 ```
@@ -76,12 +76,12 @@ EMAIL_WHITELIST='{"alice": "alice@example.com", "bob": "bob@example.com"}'
 uv run python main.py
 
 # Or use the CLI
-portcullis serve
+vestibule serve
 ```
 
 ## Available Plugins
 
-### portcullis-email (workspace only)
+### vestibule-email (workspace only)
 
 Email whitelisting plugin that allows sending emails only to pre-approved recipients.
 
@@ -92,16 +92,16 @@ Email whitelisting plugin that allows sending emails only to pre-approved recipi
 
 **Note:** This plugin is included as a workspace package for testing. A standalone PyPI package will be available in a future release.
 
-### portcullis-example
+### vestibule-example
 
-Minimal example plugin demonstrating the Portcullis plugin API. Use this as a template for creating your own plugins.
+Minimal example plugin demonstrating the Vestibule plugin API. Use this as a template for creating your own plugins.
 
 **Tools:**
 - `list_whitelist()` - List all whitelisted recipients
 - `add_to_whitelist(name, email)` - Add a recipient to the runtime whitelist
 - `remove_from_whitelist(name)` - Remove a recipient from the runtime whitelist
 
-**Note:** This plugin will be published to PyPI alongside Portcullis 0.1.0. See `packages/portcullis_example/README.md` for the plugin author guide.
+**Note:** This plugin is included for plugin authors as a template. It is **not** published to PyPI — only the `vestibule` server is released. See `packages/vestibule_example/README.md` for the plugin author guide.
 
 ## Plugin Development
 
@@ -111,18 +111,18 @@ Minimal example plugin demonstrating the Portcullis plugin API. Use this as a te
 
 ```toml
 # pyproject.toml
-[project.entry-points."portcullis.plugins"]
-my-plugin = "portcullis_my_plugin"
+[project.entry-points."vestibule.plugins"]
+my-plugin = "vestibule_my_plugin"
 ```
 
 2. Implement hooks in `__init__.py`:
 
 ```python
-from portcullis import hooks
+from vestibule import hooks
 from pydantic import BaseModel
 
 @hooks.hookimpl
-def portcullis_register_plugin_info():
+def vestibule_register_plugin_info():
     return "my-plugin", hooks.PluginMetadata(
         name="my-plugin",
         version="1.0.0",
@@ -130,11 +130,11 @@ def portcullis_register_plugin_info():
     )
 
 @hooks.hookimpl
-def portcullis_config_schema():
+def vestibule_config_schema():
     return MyPluginConfig  # Pydantic model
 
 @hooks.hookimpl
-def portcullis_register_tools(mcp_server):
+def vestibule_register_tools(mcp_server):
     @mcp_server.tool()
     def my_tool(arg: str) -> str:
         return f"Result: {arg}"
@@ -144,19 +144,19 @@ def portcullis_register_tools(mcp_server):
 
 | Hook | Purpose | First Result |
 |------|---------|--------------|
-| `portcullis_register_plugin_info` | Return plugin metadata | Yes |
-| `portcullis_register_tools` | Register MCP tools | No |
-| `portcullis_register_resources` | Register MCP resources | No |
-| `portcullis_register_prompts` | Register MCP prompts | No |
-| `portcullis_validate_secrets` | Validate required secrets | No |
-| `portcullis_config_schema` | Return Pydantic config schema | Yes |
-| `portcullis_init` | Initialize plugin with validated config | No |
+| `vestibule_register_plugin_info` | Return plugin metadata | Yes |
+| `vestibule_register_tools` | Register MCP tools | No |
+| `vestibule_register_resources` | Register MCP resources | No |
+| `vestibule_register_prompts` | Register MCP prompts | No |
+| `vestibule_validate_secrets` | Validate required secrets | No |
+| `vestibule_config_schema` | Return Pydantic config schema | Yes |
+| `vestibule_init` | Initialize plugin with validated config | No |
 
 ## Project Structure
 
 ```
-portcullis/
-  portcullis/                 # Core server package
+vestibule/
+  vestibule/                 # Core server package
     __init__.py
     hooks.py                  # Pluggy hook specifications
     plugin_manager.py         # Plugin discovery and loading
@@ -167,12 +167,12 @@ portcullis/
       http_sse.py             # HTTP/SSE transport
       common.py               # Shared handlers
   packages/
-    portcullis_email/         # Email whitelisting plugin
-      portcullis_email/
+    vestibule_email/         # Email whitelisting plugin
+      vestibule_email/
         __init__.py
       tests/
   tests/                      # Server tests
-  .portcullis/
+  .vestibule/
     config.toml.example       # Example configuration
   .env.example                # Example environment variables
 ```
@@ -184,16 +184,16 @@ portcullis/
 uv run pytest
 
 # Run with coverage
-uv run pytest --cov=portcullis --cov=packages/portcullis_email
+uv run pytest --cov=vestibule --cov=packages/vestibule_email
 
 # Run the server
 uv run python main.py
 
 # CLI commands
-portcullis serve              # Start the server
-portcullis healthcheck        # Validate plugin secrets
-portcullis plugins            # List loaded plugins
-portcullis version            # Show version
+vestibule serve              # Start the server
+vestibule healthcheck        # Validate plugin secrets
+vestibule plugins            # List loaded plugins
+vestibule version            # Show version
 ```
 
 ## License

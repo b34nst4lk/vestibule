@@ -42,10 +42,10 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.13"
-      - name: Build portcullis
-        run: uv build --package portcullis
-      - name: Build portcullis-example
-        run: uv build --package portcullis-example
+      - name: Build vestibule
+        run: uv build --package vestibule
+      - name: Build vestibule-example
+        run: uv build --package vestibule-example
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:

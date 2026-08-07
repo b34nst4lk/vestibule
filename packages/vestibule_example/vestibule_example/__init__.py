@@ -1,7 +1,7 @@
 """
-Portcullis Example Plugin
+Vestibule Example Plugin
 
-This is a minimal example plugin demonstrating the Portcullis plugin API.
+This is a minimal example plugin demonstrating the Vestibule plugin API.
 It provides a simple in-memory whitelist that plugin authors can use as
 a starting point for their own plugins.
 
@@ -16,7 +16,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from portcullis import hooks
+from vestibule import hooks
 
 # -----------------------------------------------------------------------------
 # Configuration Schema
@@ -48,12 +48,12 @@ _runtime_whitelist: dict[str, str] = {}
 
 
 @hooks.hookimpl
-def portcullis_register_plugin_info() -> tuple[str, hooks.PluginMetadata]:
+def vestibule_register_plugin_info() -> tuple[str, hooks.PluginMetadata]:
     """Return plugin metadata."""
     meta = hooks.PluginMetadata(
         name="example",
         version="0.1.0",
-        description="Example plugin demonstrating the Portcullis plugin API",
+        description="Example plugin demonstrating the Vestibule plugin API",
     )
     return "example", meta
 
@@ -64,7 +64,7 @@ def portcullis_register_plugin_info() -> tuple[str, hooks.PluginMetadata]:
 
 
 @hooks.hookimpl
-def portcullis_config_schema() -> type[BaseModel]:
+def vestibule_config_schema() -> type[BaseModel]:
     """Return the Pydantic config schema for this plugin."""
     return ExamplePluginConfig
 
@@ -75,7 +75,7 @@ def portcullis_config_schema() -> type[BaseModel]:
 
 
 @hooks.hookimpl
-def portcullis_init(config: ExamplePluginConfig) -> None:
+def vestibule_init(config: ExamplePluginConfig) -> None:
     """
     Initialize the plugin with validated configuration.
 
@@ -92,7 +92,7 @@ def portcullis_init(config: ExamplePluginConfig) -> None:
 
 
 @hooks.hookimpl
-def portcullis_register_tools(mcp_server: Any) -> None:
+def vestibule_register_tools(mcp_server: Any) -> None:
     """Register MCP tools with the server."""
 
     @mcp_server.tool()

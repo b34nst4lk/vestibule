@@ -1,6 +1,6 @@
-# Bulwark Email Whitelisting Plugin
+# Vestibule Email Whitelisting Plugin
 
-A plugin for the Bulwark MCP server that provides email sending capabilities with recipient whitelisting.
+A plugin for the Vestibule MCP server that provides email sending capabilities with recipient whitelisting.
 
 ## Features
 
@@ -12,13 +12,13 @@ A plugin for the Bulwark MCP server that provides email sending capabilities wit
 ## Installation
 
 ```bash
-pip install bulwark-email
+pip install vestibule-email
 ```
 
 Or for development:
 
 ```bash
-cd packages/bulwark_email
+cd packages/vestibule_email
 uv pip install -e .
 ```
 
@@ -26,10 +26,10 @@ uv pip install -e .
 
 ### TOML Configuration
 
-Add to your `.bulwark/config.toml` or `~/.bulwark/config.toml`:
+Add to your `.vestibule/config.toml` or `~/.vestibule/config.toml`:
 
 ```toml
-[tool.bulwark.plugins.email]
+[tool.vestibule.plugins.email]
 smtp_host = "smtp.gmail.com"
 smtp_port = 587
 smtp_use_tls = true
@@ -37,7 +37,7 @@ sender_email = "you@gmail.com"
 sender_name = "Your Name"
 
 # Whitelist: friendly name -> email address
-[tool.bulwark.plugins.email.whitelist]
+[tool.vestibule.plugins.email.whitelist]
 alice = "alice@example.com"
 bob = "bob@example.com"
 team = "team@company.com"

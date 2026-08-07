@@ -1,5 +1,5 @@
 """
-Portcullis CLI - Plugin-based MCP server.
+Vestibule CLI - Plugin-based MCP server.
 
 Commands:
     serve       - Start the MCP server with loaded plugins
@@ -16,23 +16,23 @@ from mcp.server.fastmcp import FastMCP
 from .config import Config, Transport
 from .plugin_manager import PluginManager
 
-app = typer.Typer(help="Portcullis - Plugin-based MCP server")
+app = typer.Typer(help="Vestibule - Plugin-based MCP server")
 
 
 def get_version() -> str:
-    """Get the Portcullis version."""
+    """Get the Vestibule version."""
     try:
         import importlib.metadata
 
-        return importlib.metadata.version("portcullis")
+        return importlib.metadata.version("vestibule")
     except importlib.metadata.PackageNotFoundError:
         return "0.1.0 (dev)"
 
 
 @app.command()
 def version() -> None:
-    """Show Portcullis version."""
-    typer.echo(f"portcullis {get_version()}")
+    """Show Vestibule version."""
+    typer.echo(f"vestibule {get_version()}")
 
 
 @app.command()
@@ -48,15 +48,15 @@ def serve(
     By default, runs on stdio transport. Use --transport http-sse for HTTP/SSE.
     Configuration is loaded from:
       1. CLI arguments (highest priority)
-      2. .portcullis/config.toml (project config)
-      3. ~/.portcullis/config.toml (user config)
+      2. .vestibule/config.toml (project config)
+      3. ~/.vestibule/config.toml (user config)
       4. Built-in defaults
     """
     # Load configuration from TOML files
     cfg = Config.load(config)
 
     # Configure the shared rate limiter from config
-    from portcullis.rate_limit import configure_rate_limits
+    from vestibule.rate_limit import configure_rate_limits
 
     configure_rate_limits(cfg.rate_limits)
 
@@ -85,7 +85,7 @@ def serve(
         sys.exit(1)
 
     # Create the MCP server
-    server = FastMCP("Portcullis")
+    server = FastMCP("Vestibule")
 
     # Register plugin tools, resources, and prompts
     pm.register_tools(server)
@@ -100,13 +100,13 @@ def serve(
             schema = schemas[plugin_name]
             try:
                 typed_config = schema(**plugin_config)
-                pm.pm.hook.portcullis_init(config=typed_config)
+                pm.pm.hook.vestibule_init(config=typed_config)
             except Exception as e:
                 typer.echo(f"Plugin '{plugin_name}' initialization failed: {e}", err=True)
                 sys.exit(1)
         else:
             # Plugin has no schema, pass raw config
-            pm.pm.hook.portcullis_init(config=plugin_config if plugin_config else None)
+            pm.pm.hook.vestibule_init(config=plugin_config if plugin_config else None)
 
     # Validate secrets
     errors = pm.validate_secrets()
@@ -117,7 +117,7 @@ def serve(
         sys.exit(1)
 
     # Run the server
-    typer.echo(f"Starting Portcullis server on {final_transport} transport...")
+    typer.echo(f"Starting Vestibule server on {final_transport} transport...")
 
     if final_transport == Transport.STDIO:
         server.run(transport="stdio")
@@ -191,7 +191,7 @@ def plugins(
         typer.echo("No plugins discovered.")
         typer.echo()
         typer.echo("Install plugins with:")
-        typer.echo("  pip install portcullis-<name>")
+        typer.echo("  pip install vestibule-<name>")
         return
 
     typer.echo(f"Discovered {len(discovered)} plugin(s):")

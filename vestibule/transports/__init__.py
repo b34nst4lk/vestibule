@@ -1,4 +1,4 @@
-"""Transport implementations for Portcullis MCP server."""
+"""Transport implementations for Vestibule MCP server."""
 
 from .http_sse import HTTPSSETransport
 from .stdio import StdioTransport

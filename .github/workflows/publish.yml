@@ -18,8 +18,8 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Build portcullis
-        run: uv build --package portcullis
+      - name: Build vestibule
+        run: uv build --package vestibule
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

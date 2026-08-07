@@ -1,7 +1,7 @@
 # Issue Tracker — GitHub Issues
 
 This repo tracks **open** issues as GitHub issues on
-[`b34nst4lk/portcullis`](https://github.com/b34nst4lk/portcullis/issues).
+[`b34nst4lk/vestibule`](https://github.com/b34nst4lk/vestibule/issues).
 
 ## Open tickets
 

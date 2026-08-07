@@ -1,10 +1,10 @@
 """
-Per-tool rate limiting for Portcullis MCP server.
+Per-tool rate limiting for Vestibule MCP server.
 
 Implements a token-bucket rate limiter keyed by tool name. Limits are
 configured as requests-per-minute and can be set per tool via TOML:
 
-    [tool.portcullis.rate_limits]
+    [tool.vestibule.rate_limits]
     send_email = 10
     list_whitelist = 120
 

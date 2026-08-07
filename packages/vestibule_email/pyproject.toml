@@ -1,17 +1,17 @@
 [project]
-name = "portcullis-email"
+name = "vestibule-email"
 version = "0.1.0"
-description = "Email whitelisting plugin for Portcullis MCP server"
+description = "Email whitelisting plugin for Vestibule MCP server"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "portcullis",
+    "vestibule",
     "mcp[cli]>=1.27,<2",
     "pydantic>=2.0",
 ]
 
-[project.entry-points."portcullis.plugins"]
-email = "portcullis_email"
+[project.entry-points."vestibule.plugins"]
+email = "vestibule_email"
 
 [build-system]
 requires = ["hatchling"]

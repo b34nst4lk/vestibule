@@ -1,4 +1,4 @@
-# Pre-commit hooks for Portcullis
+# Pre-commit hooks for Vestibule
 # Install: uv run pre-commit install
 # Run manually: uv run pre-commit run --all-files
 

@@ -1,5 +1,5 @@
 [project]
-name = "portcullis"
+name = "vestibule"
 version = "0.1.0"
 description = "A plugin-based MCP server using pluggy for extensibility"
 readme = "README.md"
@@ -15,17 +15,17 @@ dependencies = [
 ]
 
 [project.scripts]
-portcullis = "portcullis.cli:main"
+vestibule = "vestibule.cli:main"
 
-[project.entry-points."portcullis.plugins"]
+[project.entry-points."vestibule.plugins"]
 # Plugins register here, e.g.:
-# email = "portcullis_email"
+# email = "vestibule_email"
 
 [tool.uv.workspace]
-members = ["packages/portcullis_email", "packages/portcullis_example"]
+members = ["packages/vestibule_email", "packages/vestibule_example"]
 
 [tool.uv.sources]
-portcullis = { workspace = true }
+vestibule = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -55,10 +55,10 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["portcullis"]
+known-first-party = ["vestibule"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "packages/portcullis_email/tests", "packages/portcullis_example/tests"]
+testpaths = ["tests", "packages/vestibule_email/tests", "packages/vestibule_example/tests"]
 markers = [
     "integration: Integration tests (stdio/HTTP)",
     "http: HTTP/SSE transport tests (requires running server)",

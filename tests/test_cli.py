@@ -1,10 +1,10 @@
-"""Tests for Bulwark CLI commands."""
+"""Tests for Vestibule CLI commands."""
 
 import re
 
 from typer.testing import CliRunner
 
-from portcullis.cli import app, get_version
+from vestibule.cli import app, get_version
 
 runner = CliRunner()
 
@@ -22,7 +22,7 @@ class TestVersionCommand:
         """Test version command outputs version string."""
         result = runner.invoke(app, ["version"])
         assert result.exit_code == 0
-        assert "portcullis" in result.stdout
+        assert "vestibule" in result.stdout
         assert "0.1.0" in result.stdout
 
 

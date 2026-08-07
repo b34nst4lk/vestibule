@@ -1,5 +1,5 @@
 """
-Integration tests for Portcullis stdio transport.
+Integration tests for Vestibule stdio transport.
 
 Tests the full JSON-RPC over stdio stack with real process boundaries.
 Uses subprocess-based approach for direct JSON-RPC testing.
@@ -104,7 +104,7 @@ class MCPStdioProcess:
 
 @pytest.fixture
 def stdio_server(env_config: dict):
-    """Start portcullis server via stdio and yield a client."""
+    """Start vestibule server via stdio and yield a client."""
     client = MCPStdioProcess(
         cmd=["uv", "run", "python", "main.py"],
         env=env_config,
@@ -125,7 +125,7 @@ class TestStdioTransport:
         result = stdio_server.jsonrpc_request("initialize", {"protocolVersion": "2024-11-05"})
         assert result["jsonrpc"] == "2.0"
         assert "result" in result
-        assert result["result"]["serverInfo"]["name"] == "portcullis"
+        assert result["result"]["serverInfo"]["name"] == "vestibule"
 
     def test_list_tools(self, stdio_server: MCPStdioProcess):
         """Verify email plugin tools are registered."""

@@ -1,4 +1,4 @@
-"""Portcullis - A plugin-based MCP server."""
+"""Vestibule - A plugin-based MCP server."""
 
 from .hooks import PluginMetadata, SecretStr, hookimpl, hookspec
 from .plugin_manager import PluginManager

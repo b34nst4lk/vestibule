@@ -4,7 +4,7 @@ Tests for the per-tool rate limiting module.
 
 import pytest
 
-from portcullis.rate_limit import (
+from vestibule.rate_limit import (
     DEFAULT_RATE_LIMIT,
     RateLimiter,
     RateLimitExceeded,

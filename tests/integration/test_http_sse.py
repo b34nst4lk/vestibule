@@ -1,5 +1,5 @@
 """
-Integration tests for Bulwark HTTP/SSE transport.
+Integration tests for Vestibule HTTP/SSE transport.
 
 Tests the Streamable HTTP transport with real HTTP endpoints.
 """
@@ -11,7 +11,7 @@ import pytest
 @pytest.fixture
 def http_client(http_server: str):
     """
-    Create an HTTP client for the Bulwark server.
+    Create an HTTP client for the Vestibule server.
 
     This fixture provides a sync httpx.Client for making HTTP requests.
     """

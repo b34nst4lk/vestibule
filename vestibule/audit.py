@@ -1,5 +1,5 @@
 """
-Audit logging for Portcullis MCP server.
+Audit logging for Vestibule MCP server.
 
 Provides structured JSON logging for tool calls with secret masking.
 """
@@ -12,7 +12,7 @@ from typing import Any
 from pydantic import SecretStr
 
 # Configure audit logger - outputs JSON to stdout
-_audit_logger = logging.getLogger("portcullis.audit")
+_audit_logger = logging.getLogger("vestibule.audit")
 _audit_logger.setLevel(logging.INFO)
 
 # Only add handler if not already present (prevents duplicates on reload)

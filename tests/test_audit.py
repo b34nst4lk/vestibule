@@ -8,13 +8,13 @@ from io import StringIO
 
 import pytest
 
-from portcullis.audit import log_tool_call, mask_sensitive_data
+from vestibule.audit import log_tool_call, mask_sensitive_data
 
 
 @pytest.fixture
 def capture_audit_logs():
     """Capture audit logs to a string buffer for testing."""
-    import portcullis.audit as audit_module
+    import vestibule.audit as audit_module
 
     # Create a string handler
     string_buffer = StringIO()

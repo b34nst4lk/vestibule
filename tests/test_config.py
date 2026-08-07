@@ -1,4 +1,4 @@
-"""Tests for Bulwark configuration loading."""
+"""Tests for Vestibule configuration loading."""
 
 import os
 import tempfile
@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from portcullis.config import Config
+from vestibule.config import Config
 
 
 @pytest.fixture(autouse=True)
@@ -58,17 +58,17 @@ class TestConfigFileLoading:
     """Test loading config from TOML files."""
 
     def test_load_user_config(self):
-        """Test loading from ~/.portcullis/config.toml."""
+        """Test loading from ~/.vestibule/config.toml."""
         with tempfile.TemporaryDirectory() as tmpdir:
             os.chdir(tmpdir)
             os.environ["HOME"] = tmpdir
 
             # Create user config
-            user_config_dir = Path(tmpdir) / ".portcullis"
+            user_config_dir = Path(tmpdir) / ".vestibule"
             user_config_dir.mkdir()
             user_config = user_config_dir / "config.toml"
             user_config.write_text("""
-[tool.portcullis]
+[tool.vestibule]
 host = "0.0.0.0"
 port = 9000
 transport = "stdio"
@@ -82,17 +82,17 @@ log-level = "debug"
             assert config.log_level == "debug"
 
     def test_load_project_config(self):
-        """Test loading from .portcullis/config.toml."""
+        """Test loading from .vestibule/config.toml."""
         with tempfile.TemporaryDirectory() as tmpdir:
             os.chdir(tmpdir)
             os.environ["HOME"] = "/nonexistent"  # Ensure no user config
 
             # Create project config
-            project_config_dir = Path(tmpdir) / ".portcullis"
+            project_config_dir = Path(tmpdir) / ".vestibule"
             project_config_dir.mkdir()
             project_config = project_config_dir / "config.toml"
             project_config.write_text("""
-[tool.portcullis]
+[tool.vestibule]
 host = "127.0.0.1"
 port = 8080
 transport = "http-sse"
@@ -110,21 +110,21 @@ transport = "http-sse"
             os.environ["HOME"] = tmpdir
 
             # Create user config
-            user_config_dir = Path(tmpdir) / ".portcullis"
+            user_config_dir = Path(tmpdir) / ".vestibule"
             user_config_dir.mkdir()
             user_config = user_config_dir / "config.toml"
             user_config.write_text("""
-[tool.portcullis]
+[tool.vestibule]
 host = "user.example.com"
 port = 1111
 """)
 
             # Create project config
-            project_config_dir = Path(tmpdir) / ".portcullis"
+            project_config_dir = Path(tmpdir) / ".vestibule"
             project_config_dir.mkdir(exist_ok=True)
             project_config = project_config_dir / "config.toml"
             project_config.write_text("""
-[tool.portcullis]
+[tool.vestibule]
 host = "project.example.com"
 port = 2222
 """)
@@ -132,7 +132,7 @@ port = 2222
             # Create CLI config
             cli_config = Path(tmpdir) / "cli.toml"
             cli_config.write_text("""
-[tool.portcullis]
+[tool.vestibule]
 host = "cli.example.com"
 port = 3333
 """)
@@ -148,21 +148,21 @@ port = 3333
             os.environ["HOME"] = tmpdir
 
             # Create user config
-            user_config_dir = Path(tmpdir) / ".portcullis"
+            user_config_dir = Path(tmpdir) / ".vestibule"
             user_config_dir.mkdir()
             user_config = user_config_dir / "config.toml"
             user_config.write_text("""
-[tool.portcullis]
+[tool.vestibule]
 host = "user.example.com"
 port = 1111
 """)
 
             # Create project config
-            project_config_dir = Path(tmpdir) / ".portcullis"
+            project_config_dir = Path(tmpdir) / ".vestibule"
             project_config_dir.mkdir(exist_ok=True)
             project_config = project_config_dir / "config.toml"
             project_config.write_text("""
-[tool.portcullis]
+[tool.vestibule]
 host = "project.example.com"
 port = 2222
 """)
@@ -181,23 +181,23 @@ class TestPluginConfig:
             os.chdir(tmpdir)
             os.environ["HOME"] = tmpdir
 
-            config_dir = Path(tmpdir) / ".portcullis"
+            config_dir = Path(tmpdir) / ".vestibule"
             config_dir.mkdir()
             config_file = config_dir / "config.toml"
             config_file.write_text("""
-[tool.portcullis]
+[tool.vestibule]
 host = "127.0.0.1"
 
-[tool.portcullis.plugins.email]
+[tool.vestibule.plugins.email]
 smtp_host = "smtp.gmail.com"
 smtp_port = 587
 sender_email = "test@example.com"
 
-[tool.portcullis.plugins.email.whitelist]
+[tool.vestibule.plugins.email.whitelist]
 alice = "alice@example.com"
 bob = "bob@example.com"
 
-[tool.portcullis.plugins.calendar]
+[tool.vestibule.plugins.calendar]
 timezone = "UTC"
 """)
 
@@ -270,19 +270,19 @@ class TestConfigRateLimits:
     """Test loading rate limits from TOML."""
 
     def test_load_rate_limits(self):
-        """Test loading [tool.portcullis.rate_limits] from config."""
+        """Test loading [tool.vestibule.rate_limits] from config."""
         with tempfile.TemporaryDirectory() as tmpdir:
             os.chdir(tmpdir)
             os.environ["HOME"] = "/nonexistent"
 
-            project_config_dir = Path(tmpdir) / ".portcullis"
+            project_config_dir = Path(tmpdir) / ".vestibule"
             project_config_dir.mkdir()
             project_config = project_config_dir / "config.toml"
             project_config.write_text("""
-[tool.portcullis]
+[tool.vestibule]
 host = "127.0.0.1"
 
-[tool.portcullis.rate_limits]
+[tool.vestibule.rate_limits]
 send_email = 10
 list_whitelist = 120
 """)

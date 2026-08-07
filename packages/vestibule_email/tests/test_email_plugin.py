@@ -1,19 +1,19 @@
 """
-Tests for the Portcullis Email Whitelisting Plugin.
+Tests for the Vestibule Email Whitelisting Plugin.
 """
 
 import os
 from unittest.mock import MagicMock, patch
 
-from portcullis_email import (
+from vestibule_email import (
     EmailPluginConfig,
-    portcullis_config_schema,
-    portcullis_register_plugin_info,
-    portcullis_register_tools,
-    portcullis_validate_secrets,
+    vestibule_config_schema,
+    vestibule_register_plugin_info,
+    vestibule_register_tools,
+    vestibule_validate_secrets,
 )
 
-from portcullis import hooks
+from vestibule import hooks
 
 
 class TestPluginMetadata:
@@ -21,7 +21,7 @@ class TestPluginMetadata:
 
     def test_register_plugin_info(self):
         """Test that plugin info is returned correctly."""
-        result = portcullis_register_plugin_info()
+        result = vestibule_register_plugin_info()
 
         assert isinstance(result, tuple)
         assert len(result) == 2
@@ -39,7 +39,7 @@ class TestConfigSchema:
 
     def test_config_schema_returns_pydantic_model(self):
         """Test that config schema returns a Pydantic model class."""
-        schema = portcullis_config_schema()
+        schema = vestibule_config_schema()
 
         assert schema == EmailPluginConfig
         assert issubclass(schema, object)
@@ -82,7 +82,7 @@ class TestSecretsValidation:
     def test_validate_secrets_missing_password(self):
         """Test validation fails when SMTP password is missing."""
         with patch.dict(os.environ, {}, clear=True):
-            plugin_name, is_valid, error_msg = portcullis_validate_secrets()
+            plugin_name, is_valid, error_msg = vestibule_validate_secrets()
 
             assert plugin_name == "email"
             assert is_valid is False
@@ -94,7 +94,7 @@ class TestSecretsValidation:
             os.environ,
             {"EMAIL_SMTP_PASSWORD": "test_pass"},  # pragma: allowlist secret
         ):
-            plugin_name, is_valid, error_msg = portcullis_validate_secrets()
+            plugin_name, is_valid, error_msg = vestibule_validate_secrets()
 
             assert plugin_name == "email"
             assert is_valid is True
@@ -108,7 +108,7 @@ class TestSecretsValidation:
                 "EMAIL_SMTP_USER": "test_user",  # pragma: allowlist secret
             },
         ):
-            plugin_name, is_valid, error_msg = portcullis_validate_secrets()
+            plugin_name, is_valid, error_msg = vestibule_validate_secrets()
 
             assert plugin_name == "email"
             assert is_valid is True
@@ -123,7 +123,7 @@ class TestToolRegistration:
         mock_tool_decorator = MagicMock()
         mock_server.tool.return_value = mock_tool_decorator
 
-        portcullis_register_tools(mock_server)
+        vestibule_register_tools(mock_server)
 
         # tool() decorator should be called at least once for each tool
         assert mock_server.tool.call_count >= 3
@@ -142,7 +142,7 @@ class TestToolRegistration:
 
         mock_server.tool.side_effect = capture_tool
 
-        portcullis_register_tools(mock_server)
+        vestibule_register_tools(mock_server)
 
         assert "send_email" in registered_tools
         assert "list_whitelist" in registered_tools
@@ -154,7 +154,7 @@ class TestSendEmailTool:
 
     def test_send_email_success(self, mock_smtp, env_config):
         """Test successful email sending."""
-        from portcullis_email import _get_config_from_env, _resolve_recipient
+        from vestibule_email import _get_config_from_env, _resolve_recipient
 
         config = _get_config_from_env()
         recipient_email = _resolve_recipient("Alice", config.whitelist)
@@ -163,7 +163,7 @@ class TestSendEmailTool:
 
     def test_send_email_recipient_not_in_whitelist(self, env_config):
         """Test error when recipient is not whitelisted."""
-        from portcullis_email import _get_config_from_env, _resolve_recipient
+        from vestibule_email import _get_config_from_env, _resolve_recipient
 
         config = _get_config_from_env()
         recipient_email = _resolve_recipient("Unknown", config.whitelist)
@@ -172,7 +172,7 @@ class TestSendEmailTool:
 
     def test_send_email_case_insensitive_lookup(self, env_config):
         """Test that recipient lookup is case-insensitive."""
-        from portcullis_email import _get_config_from_env, _resolve_recipient
+        from vestibule_email import _get_config_from_env, _resolve_recipient
 
         config = _get_config_from_env()
 
@@ -182,7 +182,7 @@ class TestSendEmailTool:
 
     def test_send_email_with_cc(self, mock_smtp, env_config):
         """Test email sending with CC recipient."""
-        from portcullis_email import _get_config_from_env, _resolve_recipient
+        from vestibule_email import _get_config_from_env, _resolve_recipient
 
         config = _get_config_from_env()
         recipient_email = _resolve_recipient("Alice", config.whitelist)
@@ -197,7 +197,7 @@ class TestListWhitelistTool:
 
     def test_list_whitelist_formats_output(self, env_config):
         """Test that whitelist is formatted correctly."""
-        from portcullis_email import _get_config_from_env
+        from vestibule_email import _get_config_from_env
 
         config = _get_config_from_env()
 
@@ -213,7 +213,7 @@ class TestListWhitelistTool:
     def test_list_whitelist_empty(self):
         """Test whitelist output when empty."""
         with patch.dict(os.environ, {"EMAIL_WHITELIST": "{}"}):
-            from portcullis_email import _get_config_from_env
+            from vestibule_email import _get_config_from_env
 
             config = _get_config_from_env()
             assert config.whitelist == {}
@@ -256,7 +256,7 @@ class TestHelperFunctions:
 
     def test_get_config_from_env(self, env_config):
         """Test configuration loading from environment."""
-        from portcullis_email import _get_config_from_env
+        from vestibule_email import _get_config_from_env
 
         config = _get_config_from_env()
 
@@ -270,7 +270,7 @@ class TestHelperFunctions:
     def test_get_config_from_env_defaults(self):
         """Test configuration defaults when env vars are missing."""
         with patch.dict(os.environ, {}, clear=True):
-            from portcullis_email import _get_config_from_env
+            from vestibule_email import _get_config_from_env
 
             config = _get_config_from_env()
 
@@ -282,7 +282,7 @@ class TestHelperFunctions:
     def test_get_config_from_env_invalid_json(self):
         """Test that invalid JSON in whitelist falls back to empty dict."""
         with patch.dict(os.environ, {"EMAIL_WHITELIST": "not valid json"}):
-            from portcullis_email import _get_config_from_env
+            from vestibule_email import _get_config_from_env
 
             config = _get_config_from_env()
             assert config.whitelist == {}

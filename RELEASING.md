@@ -1,6 +1,6 @@
-# Releasing Portcullis
+# Releasing Vestibule
 
-This document describes how to publish a new version of Portcullis to PyPI.
+This document describes how to publish a new version of Vestibule to PyPI.
 
 ## Overview
 
@@ -9,11 +9,11 @@ Releases are automated via GitHub Actions. Two workflows live in
 
 - **`ci.yml`** — runs on every push/PR to `main`: lint (ruff), tests (pytest),
   and builds both packages. This is the safety gate before any release.
-- **`publish.yml`** — builds `portcullis` and publishes it to PyPI. Triggered
+- **`publish.yml`** — builds `vestibule` and publishes it to PyPI. Triggered
   by pushing a `v*` tag **or** manually via the Actions tab ("Run workflow").
 
-> **Scope:** Only the `portcullis` server package is published to PyPI. The
-> example plugin (`portcullis-example`) is built and tested in CI but is **not**
+> **Scope:** Only the `vestibule` server package is published to PyPI. The
+> example plugin (`vestibule-example`) is built and tested in CI but is **not**
 > published. The first email plugin will be published in a later effort.
 
 ## One-time setup: PyPI trusted publishing
@@ -28,8 +28,8 @@ trust this GitHub repository:
    - **Workflow**: `publish.yml`
    - **Environment**: *(leave blank)*
    - **Repository owner**: `b34nst4lk`
-   - **Repository**: `portcullis`
-3. Configure this for the `portcullis` project only. (The example plugin is
+   - **Repository**: `vestibule`
+3. Configure this for the `vestibule` project only. (The example plugin is
    not published; the email plugin will be added when it is released later.)
 
 Once the first release succeeds, the pending publishers become active.
@@ -47,7 +47,7 @@ Once the first release succeeds, the pending publishers become active.
    ```
 
    Pushing the tag triggers `publish.yml`, which builds and publishes
-   `portcullis` to PyPI.
+   `vestibule` to PyPI.
 
 5. **Verify** the release on PyPI and that the GitHub Actions run succeeded.
 
@@ -58,7 +58,7 @@ PyPI** → **Run workflow**. This builds and publishes the current `main` HEAD.
 
 ## Notes
 
-- Only the `portcullis` server package is published. The example plugin stays
+- Only the `vestibule` server package is published. The example plugin stays
   in the repo and is covered by CI, but is not released to PyPI.
 - The `dist/` directory is gitignored; artifacts are produced fresh by CI.
 - If a version already exists on PyPI, the publish step fails (`skip_existing`

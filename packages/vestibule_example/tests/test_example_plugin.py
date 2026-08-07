@@ -1,19 +1,19 @@
 """
-Tests for the Portcullis Example Plugin.
+Tests for the Vestibule Example Plugin.
 """
 
 from unittest.mock import MagicMock
 
-import portcullis_example
-from portcullis_example import (
+import vestibule_example
+from vestibule_example import (
     ExamplePluginConfig,
-    portcullis_config_schema,
-    portcullis_init,
-    portcullis_register_plugin_info,
-    portcullis_register_tools,
+    vestibule_config_schema,
+    vestibule_init,
+    vestibule_register_plugin_info,
+    vestibule_register_tools,
 )
 
-from portcullis import hooks
+from vestibule import hooks
 
 
 class TestPluginMetadata:
@@ -21,7 +21,7 @@ class TestPluginMetadata:
 
     def test_register_plugin_info(self):
         """Test that plugin info is returned correctly."""
-        result = portcullis_register_plugin_info()
+        result = vestibule_register_plugin_info()
 
         assert isinstance(result, tuple)
         assert len(result) == 2
@@ -39,7 +39,7 @@ class TestConfigSchema:
 
     def test_config_schema_returns_pydantic_model(self):
         """Test that config schema returns a Pydantic model class."""
-        schema = portcullis_config_schema()
+        schema = vestibule_config_schema()
 
         assert schema == ExamplePluginConfig
         assert issubclass(schema, object)
@@ -70,14 +70,14 @@ class TestInitHook:
         config = ExamplePluginConfig(initial_whitelist={"alice": "alice@example.com"})
 
         # Clear the runtime whitelist first
-        portcullis_example._runtime_whitelist.clear()
+        vestibule_example._runtime_whitelist.clear()
 
         # Initialize
-        portcullis_init(config)
+        vestibule_init(config)
 
         # Check that the whitelist was populated
-        assert "alice" in portcullis_example._runtime_whitelist
-        assert portcullis_example._runtime_whitelist["alice"] == "alice@example.com"
+        assert "alice" in vestibule_example._runtime_whitelist
+        assert vestibule_example._runtime_whitelist["alice"] == "alice@example.com"
 
 
 class TestToolRegistration:
@@ -89,7 +89,7 @@ class TestToolRegistration:
         mock_tool_decorator = MagicMock()
         mock_server.tool.return_value = mock_tool_decorator
 
-        portcullis_register_tools(mock_server)
+        vestibule_register_tools(mock_server)
 
         # tool() decorator should be called at least once for each tool
         assert mock_server.tool.call_count >= 3
@@ -108,7 +108,7 @@ class TestToolRegistration:
 
         mock_server.tool.side_effect = capture_tool
 
-        portcullis_register_tools(mock_server)
+        vestibule_register_tools(mock_server)
 
         assert "list_whitelist" in registered_tools
         assert "add_to_whitelist" in registered_tools
@@ -121,13 +121,13 @@ class TestListWhitelistTool:
     def test_list_whitelist_formats_output(self):
         """Test that whitelist is formatted correctly."""
         # Set up some test data
-        portcullis_example._runtime_whitelist.clear()
-        portcullis_example._runtime_whitelist["alice"] = "alice@example.com"
-        portcullis_example._runtime_whitelist["bob"] = "bob@test.com"
+        vestibule_example._runtime_whitelist.clear()
+        vestibule_example._runtime_whitelist["alice"] = "alice@example.com"
+        vestibule_example._runtime_whitelist["bob"] = "bob@test.com"
 
         # The tool is registered via decorator, so we test the output format
         lines = ["Whitelisted recipients:"]
-        for name, email in sorted(portcullis_example._runtime_whitelist.items()):
+        for name, email in sorted(vestibule_example._runtime_whitelist.items()):
             lines.append(f"  - {name}: {email}")
         output = "\n".join(lines)
 
@@ -136,7 +136,7 @@ class TestListWhitelistTool:
 
     def test_list_whitelist_empty(self):
         """Test whitelist output when empty."""
-        portcullis_example._runtime_whitelist.clear()
+        vestibule_example._runtime_whitelist.clear()
 
         result = "No recipients in the whitelist."
         assert result == "No recipients in the whitelist."
@@ -147,7 +147,7 @@ class TestAddToWhitelistTool:
 
     def test_add_to_whitelist_valid_email(self):
         """Test adding a valid email to whitelist."""
-        portcullis_example._runtime_whitelist.clear()
+        vestibule_example._runtime_whitelist.clear()
 
         # Simulate the validation logic
         new_email = "dave@example.com"
@@ -156,9 +156,9 @@ class TestAddToWhitelistTool:
         assert is_valid is True
 
         # Add to whitelist
-        portcullis_example._runtime_whitelist["dave"] = new_email
-        assert "dave" in portcullis_example._runtime_whitelist
-        assert portcullis_example._runtime_whitelist["dave"] == "dave@example.com"
+        vestibule_example._runtime_whitelist["dave"] = new_email
+        assert "dave" in vestibule_example._runtime_whitelist
+        assert vestibule_example._runtime_whitelist["dave"] == "dave@example.com"
 
     def test_add_to_whitelist_invalid_email(self):
         """Test that invalid emails are rejected."""
@@ -181,22 +181,22 @@ class TestRemoveFromWhitelistTool:
 
     def test_remove_from_whitelist_existing(self):
         """Test removing an existing entry from whitelist."""
-        portcullis_example._runtime_whitelist.clear()
-        portcullis_example._runtime_whitelist["alice"] = "alice@example.com"
+        vestibule_example._runtime_whitelist.clear()
+        vestibule_example._runtime_whitelist["alice"] = "alice@example.com"
 
         # Simulate removal
         name_lower = "alice"
-        if name_lower in portcullis_example._runtime_whitelist:
-            email = portcullis_example._runtime_whitelist.pop(name_lower)
+        if name_lower in vestibule_example._runtime_whitelist:
+            email = vestibule_example._runtime_whitelist.pop(name_lower)
             assert email == "alice@example.com"
-            assert "alice" not in portcullis_example._runtime_whitelist
+            assert "alice" not in vestibule_example._runtime_whitelist
 
     def test_remove_from_whitelist_not_found(self):
         """Test that removing non-existent entry returns error."""
-        portcullis_example._runtime_whitelist.clear()
+        vestibule_example._runtime_whitelist.clear()
 
         name = "nonexistent"
         name_lower = name.lower()
-        if name_lower not in portcullis_example._runtime_whitelist:
+        if name_lower not in vestibule_example._runtime_whitelist:
             result = f"Error: '{name}' is not in the whitelist."
             assert "not in the whitelist" in result

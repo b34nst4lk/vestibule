@@ -1,8 +1,8 @@
 """
-Pluggy hook specifications for Portcullis plugin system.
+Pluggy hook specifications for Vestibule plugin system.
 
 Plugins implement these hooks to register MCP tools, resources, and prompts
-with the Portcullis server.
+with the Vestibule server.
 """
 
 import pluggy
@@ -11,8 +11,8 @@ from pydantic import SecretStr
 
 __all__ = ["hookspec", "hookimpl", "PluginMetadata", "SecretStr"]
 
-hookspec = pluggy.HookspecMarker("portcullis")
-hookimpl = pluggy.HookimplMarker("portcullis")
+hookspec = pluggy.HookspecMarker("vestibule")
+hookimpl = pluggy.HookimplMarker("vestibule")
 
 
 class PluginMetadata:
@@ -32,7 +32,7 @@ class PluginMetadata:
 
 
 @hookspec(firstresult=True)
-def portcullis_register_plugin_info() -> tuple[str, PluginMetadata]:
+def vestibule_register_plugin_info() -> tuple[str, PluginMetadata]:
     """
     Hook spec for plugins to provide their metadata.
 
@@ -44,7 +44,7 @@ def portcullis_register_plugin_info() -> tuple[str, PluginMetadata]:
 
     Example:
         @hookimpl
-        def portcullis_register_plugin_info():
+        def vestibule_register_plugin_info():
             meta = PluginMetadata(
                 name="email-whitelist",
                 version="0.1.0",
@@ -56,7 +56,7 @@ def portcullis_register_plugin_info() -> tuple[str, PluginMetadata]:
 
 
 @hookspec
-def portcullis_register_tools(mcp_server: FastMCP) -> None:
+def vestibule_register_tools(mcp_server: FastMCP) -> None:
     """
     Hook spec for plugins to register MCP tools.
 
@@ -68,7 +68,7 @@ def portcullis_register_tools(mcp_server: FastMCP) -> None:
 
     Example:
         @hookimpl
-        def portcullis_register_tools(mcp_server: FastMCP):
+        def vestibule_register_tools(mcp_server: FastMCP):
             @mcp_server.tool()
             def send_email(recipient: str, body: str) -> str:
                 \"\"\"Send an email to a recipient.\"\"\"
@@ -78,7 +78,7 @@ def portcullis_register_tools(mcp_server: FastMCP) -> None:
 
 
 @hookspec
-def portcullis_register_resources(mcp_server: FastMCP) -> None:
+def vestibule_register_resources(mcp_server: FastMCP) -> None:
     """
     Hook spec for plugins to register MCP resources.
 
@@ -90,7 +90,7 @@ def portcullis_register_resources(mcp_server: FastMCP) -> None:
 
     Example:
         @hookimpl
-        def portcullis_register_resources(mcp_server: FastMCP):
+        def vestibule_register_resources(mcp_server: FastMCP):
             @mcp_server.resource("config://plugin/settings")
             def get_settings() -> dict:
                 return {"key": "value"}
@@ -99,7 +99,7 @@ def portcullis_register_resources(mcp_server: FastMCP) -> None:
 
 
 @hookspec
-def portcullis_register_prompts(mcp_server: FastMCP) -> None:
+def vestibule_register_prompts(mcp_server: FastMCP) -> None:
     """
     Hook spec for plugins to register MCP prompts.
 
@@ -111,7 +111,7 @@ def portcullis_register_prompts(mcp_server: FastMCP) -> None:
 
     Example:
         @hookimpl
-        def portcullis_register_prompts(mcp_server: FastMCP):
+        def vestibule_register_prompts(mcp_server: FastMCP):
             @mcp_server.prompt()
             def email_template(recipient: str) -> str:
                 return f"Draft an email to {recipient}"
@@ -120,7 +120,7 @@ def portcullis_register_prompts(mcp_server: FastMCP) -> None:
 
 
 @hookspec
-def portcullis_validate_secrets() -> tuple[str, bool, str]:
+def vestibule_validate_secrets() -> tuple[str, bool, str]:
     """
     Hook spec for plugins to validate their required secrets.
 
@@ -133,7 +133,7 @@ def portcullis_validate_secrets() -> tuple[str, bool, str]:
 
     Example:
         @hookimpl
-        def portcullis_validate_secrets():
+        def vestibule_validate_secrets():
             if not os.getenv("SMTP_API_KEY"):
                 return "email-plugin", False, "SMTP_API_KEY is required"
             return "email-plugin", True, ""
@@ -142,7 +142,7 @@ def portcullis_validate_secrets() -> tuple[str, bool, str]:
 
 
 @hookspec(firstresult=True)
-def portcullis_config_schema() -> type:
+def vestibule_config_schema() -> type:
     """
     Hook spec for plugins to declare their Pydantic config schema.
 
@@ -162,14 +162,14 @@ def portcullis_config_schema() -> type:
             sender_email: str
 
         @hookimpl
-        def portcullis_config_schema():
+        def vestibule_config_schema():
             return EmailPluginConfig
     """
     pass
 
 
 @hookspec
-def portcullis_init(config: type | None = None) -> None:
+def vestibule_init(config: type | None = None) -> None:
     """
     Hook spec for plugins to initialize with validated configuration.
 
@@ -182,7 +182,7 @@ def portcullis_init(config: type | None = None) -> None:
 
     Example:
         @hookimpl
-        def portcullis_init(config: EmailPluginConfig):
+        def vestibule_init(config: EmailPluginConfig):
             global smtp_host
             smtp_host = config.smtp_host
     """

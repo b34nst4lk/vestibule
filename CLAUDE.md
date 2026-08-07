@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**portcullis** is a new Python 3.13 project using `uv` for package management. The project is in its initial scaffold stage.
+**vestibule** is a new Python 3.13 project using `uv` for package management. The project is in its initial scaffold stage.
 
 ## Commands
 
