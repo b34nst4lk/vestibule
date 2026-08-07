@@ -254,3 +254,43 @@ class TestConfigMerge:
         assert config.plugins["email"]["smtp_host"] == "smtp1.example.com"
         assert config.plugins["email"]["smtp_port"] == 587
         assert config.plugins["calendar"]["timezone"] == "UTC"
+
+    def test_merge_rate_limits(self):
+        """Test rate limits are merged correctly."""
+        config = Config()
+        config._merge({"rate_limits": {"send_email": 10}})
+        assert config.rate_limits == {"send_email": 10}
+
+        # Later merge updates rather than replaces
+        config._merge({"rate_limits": {"list_whitelist": 120}})
+        assert config.rate_limits == {"send_email": 10, "list_whitelist": 120}
+
+
+class TestConfigRateLimits:
+    """Test loading rate limits from TOML."""
+
+    def test_load_rate_limits(self):
+        """Test loading [tool.portcullis.rate_limits] from config."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            os.chdir(tmpdir)
+            os.environ["HOME"] = "/nonexistent"
+
+            project_config_dir = Path(tmpdir) / ".portcullis"
+            project_config_dir.mkdir()
+            project_config = project_config_dir / "config.toml"
+            project_config.write_text("""
+[tool.portcullis]
+host = "127.0.0.1"
+
+[tool.portcullis.rate_limits]
+send_email = 10
+list_whitelist = 120
+""")
+
+            config = Config.load()
+            assert config.rate_limits == {"send_email": 10, "list_whitelist": 120}
+
+    def test_no_rate_limits_defaults_empty(self):
+        """Config without rate_limits defaults to empty dict."""
+        config = Config()
+        assert config.rate_limits == {}

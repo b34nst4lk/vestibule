@@ -32,6 +32,8 @@ Production-ready Portcullis MCP server published to PyPI as 0.1.0 with:
 - [Fix README PyPI claims](.scratch/ticket-readme-fixes.md) — v0.1.0 Beta banner, uv sync installation, clarified workspace plugins
 - [Create example plugin](.scratch/ticket-example-plugin.md) — portcullis_example with 3 tools, 13 tests, plugin author README
 - [Research MCP prompt support](.scratch/research-mcp-prompt-support.md) — Use elicitation (elicitation/create), not prompts; Hermes has full support, Claude Code has bugs
+- [Implement audit logging](.scratch/ticket-audit-logging.md) — JSON audit logs to stdout, SecretStr masking, 10 tests
+- [Implement per-tool rate limiting](.scratch/ticket-rate-limiting.md) — Token-bucket limiter in rate_limit.py, per-tool TOML limits, default 60/min, wired into shared tool-call handler
 
 ## Not yet specified
 
@@ -57,8 +59,8 @@ Production-ready Portcullis MCP server published to PyPI as 0.1.0 with:
 
 ### Security Features
 
-- [Implement audit logging infrastructure](.scratch/ticket-audit-logging.md) — Structured JSON to stdout, SecretStr masking
-- [Implement per-tool rate limiting](.scratch/ticket-rate-limiting.md) — Configurable per-tool limits, no session tracking
+- ~~[Implement audit logging infrastructure](.scratch/ticket-audit-logging.md) — Structured JSON to stdout, SecretStr masking~~ ✅ DONE
+- ~~[Implement per-tool rate limiting](.scratch/ticket-rate-limiting.md) — Token bucket, configurable per-tool limits~~ ✅ DONE
 - [Implement approval workflow system](.scratch/ticket-approval-workflow.md) — Global approval_mode with per-tool override, MCP elicitation
 
 ### UX Improvements
@@ -74,6 +76,7 @@ Production-ready Portcullis MCP server published to PyPI as 0.1.0 with:
 - ~~[Update naming consistency](.scratch/ticket-naming-consistency.md) — Change Bulwark → Portcullis everywhere~~ ✅ DONE
 - ~~[Fix README PyPI claims](.scratch/ticket-readme-fixes.md) — Update installation for 0.1.0 reality~~ ✅ DONE
 - ~~[Create example plugin](.scratch/ticket-example-plugin.md) — portcullis_example with whitelist tools only~~ ✅ DONE
+- ~~[Implement audit logging infrastructure](.scratch/ticket-audit-logging.md) — JSON audit logs, SecretStr masking~~ ✅ DONE
 - [Set up PyPI publication workflow](.scratch/ticket-pypi-workflow.md) — GitHub Actions for build/publish
 
 ---

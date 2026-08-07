@@ -80,6 +80,23 @@ async def handle_tools_call(
     from mcp.server.fastmcp.exceptions import ToolError
 
     from portcullis.audit import log_tool_call
+    from portcullis.rate_limit import RateLimitExceeded, check_rate_limit
+
+    # Enforce per-tool rate limiting before executing the call
+    try:
+        check_rate_limit(tool_name)
+    except RateLimitExceeded as e:
+        log_tool_call(
+            tool_name=tool_name,
+            arguments=arguments,
+            success=False,
+            error=str(e),
+            session_id=session_id,
+        )
+        return {
+            "content": [{"type": "text", "text": str(e)}],
+            "isError": True,
+        }
 
     try:
         if hasattr(mcp_server, "call_tool"):

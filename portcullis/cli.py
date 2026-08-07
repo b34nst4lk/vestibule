@@ -55,6 +55,11 @@ def serve(
     # Load configuration from TOML files
     cfg = Config.load(config)
 
+    # Configure the shared rate limiter from config
+    from portcullis.rate_limit import configure_rate_limits
+
+    configure_rate_limits(cfg.rate_limits)
+
     # CLI args override config file settings
     final_host = host or cfg.host
     final_port = port or cfg.port

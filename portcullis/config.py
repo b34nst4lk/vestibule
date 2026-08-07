@@ -43,6 +43,7 @@ class Config:
         self.transport: Transport = Transport.STDIO
         self.log_level: LogLevel = LogLevel.INFO
         self.plugins: dict[str, dict[str, Any]] = {}
+        self.rate_limits: dict[str, int] = {}
         self._plugin_schemas: dict[str, type] = {}
 
     @classmethod
@@ -127,6 +128,12 @@ class Config:
             if "plugins" in portcullis_config:
                 result["plugins"] = portcullis_config["plugins"]
 
+        # Extract rate limits from [tool.portcullis.rate_limits]
+        if "tool" in data and "portcullis" in data["tool"]:
+            portcullis_config = data["tool"]["portcullis"]
+            if "rate_limits" in portcullis_config:
+                result["rate_limits"] = portcullis_config["rate_limits"]
+
         return result
 
     def _merge(self, other: dict[str, Any]) -> None:
@@ -147,6 +154,8 @@ class Config:
                 if plugin_name not in self.plugins:
                     self.plugins[plugin_name] = {}
                 self.plugins[plugin_name].update(plugin_config)
+        if "rate_limits" in other:
+            self.rate_limits.update(other["rate_limits"])
 
     def get_plugin_config(self, plugin_name: str) -> dict[str, Any]:
         """Get configuration for a specific plugin."""
