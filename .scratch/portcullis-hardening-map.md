@@ -34,13 +34,13 @@ Production-ready Portcullis MCP server published to PyPI as 0.1.0 with:
 - [Research MCP prompt support](.scratch/research-mcp-prompt-support.md) — Use elicitation (elicitation/create), not prompts; Hermes has full support, Claude Code has bugs
 - [Implement audit logging](.scratch/ticket-audit-logging.md) — JSON audit logs to stdout, SecretStr masking, 10 tests
 - [Implement per-tool rate limiting](.scratch/ticket-rate-limiting.md) — Token-bucket limiter in rate_limit.py, per-tool TOML limits, default 60/min, wired into shared tool-call handler
-- [Set up PyPI publication workflow](.scratch/ticket-pypi-workflow.md) — Repo published to GitHub (b34nst4lk/portcullis); ci.yml + publish.yml (trusted publishing, v* tag/manual dispatch); RELEASING.md documents release process
+- [Set up PyPI publication workflow](.scratch/ticket-pypi-workflow.md) — Repo published to GitHub (b34nst4lk/portcullis); ci.yml + publish.yml (trusted publishing, v* tag/manual dispatch); RELEASING.md documents release process. **Publishes `portcullis` only** — the example plugin is not published; the first email plugin will be published in a later effort.
 
 ## Not yet specified
 
 <!-- Fog of war -- decisions we know are coming but can't yet pin down -->
 
-*(All initial decisions have been captured — fog cleared as we grilled)*
+- Publishing the first email plugin (`portcullis-email`) to PyPI — deferred to a later effort; the publish workflow will need to add it as a published package when that effort starts
 
 ## Out of scope
 
@@ -51,6 +51,7 @@ Production-ready Portcullis MCP server published to PyPI as 0.1.0 with:
 - Adding new plugin types beyond the email subset example
 - System keychain integration for secrets — .env + wizard is the approach for 0.1.0
 - Runtime version compatibility checking — rely on pip/uv dependency resolution
+- Publishing `portcullis-example` to PyPI — the example plugin stays in the repo and is covered by CI, but is not released; only the `portcullis` server is published
 
 ---
 

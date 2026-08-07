@@ -9,9 +9,12 @@ Releases are automated via GitHub Actions. Two workflows live in
 
 - **`ci.yml`** — runs on every push/PR to `main`: lint (ruff), tests (pytest),
   and builds both packages. This is the safety gate before any release.
-- **`publish.yml`** — builds `portcullis` and `portcullis-example` and publishes
-  them to PyPI. Triggered by pushing a `v*` tag **or** manually via the
-  Actions tab ("Run workflow").
+- **`publish.yml`** — builds `portcullis` and publishes it to PyPI. Triggered
+  by pushing a `v*` tag **or** manually via the Actions tab ("Run workflow").
+
+> **Scope:** Only the `portcullis` server package is published to PyPI. The
+> example plugin (`portcullis-example`) is built and tested in CI but is **not**
+> published. The first email plugin will be published in a later effort.
 
 ## One-time setup: PyPI trusted publishing
 
@@ -26,15 +29,14 @@ trust this GitHub repository:
    - **Environment**: *(leave blank)*
    - **Repository owner**: `b34nst4lk`
    - **Repository**: `portcullis`
-3. Repeat for both `portcullis` and `portcullis-example`.
+3. Configure this for the `portcullis` project only. (The example plugin is
+   not published; the email plugin will be added when it is released later.)
 
 Once the first release succeeds, the pending publishers become active.
 
 ## Cutting a release
 
-1. **Bump the version** in `pyproject.toml` (root) and
-   `packages/portcullis_example/pyproject.toml` (and
-   `packages/portcullis_email/pyproject.toml` if it is released too).
+1. **Bump the version** in `pyproject.toml` (root).
 2. **Update `uv.lock`**: `uv lock`.
 3. **Commit** the version bump and push to `main`. Confirm `ci.yml` passes.
 4. **Tag the release** and push the tag:
@@ -44,8 +46,8 @@ Once the first release succeeds, the pending publishers become active.
    git push origin v0.1.0
    ```
 
-   Pushing the tag triggers `publish.yml`, which builds and publishes both
-   packages to PyPI.
+   Pushing the tag triggers `publish.yml`, which builds and publishes
+   `portcullis` to PyPI.
 
 5. **Verify** the release on PyPI and that the GitHub Actions run succeeded.
 
@@ -56,8 +58,8 @@ PyPI** → **Run workflow**. This builds and publishes the current `main` HEAD.
 
 ## Notes
 
-- Both packages are always built and published together so the example plugin
-  stays in sync with the server.
+- Only the `portcullis` server package is published. The example plugin stays
+  in the repo and is covered by CI, but is not released to PyPI.
 - The `dist/` directory is gitignored; artifacts are produced fresh by CI.
 - If a version already exists on PyPI, the publish step fails (`skip_existing`
   is off) — bump the version before re-releasing.

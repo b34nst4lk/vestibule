@@ -20,8 +20,6 @@ jobs:
 
       - name: Build portcullis
         run: uv build --package portcullis
-      - name: Build portcullis-example
-        run: uv build --package portcullis-example
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
