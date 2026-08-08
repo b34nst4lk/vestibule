@@ -10,6 +10,8 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from .approval import ApprovalMode
+
 
 class ConfigValidationError(Exception):
     """Raised when configuration validation fails."""
@@ -44,6 +46,8 @@ class Config:
         self.log_level: LogLevel = LogLevel.INFO
         self.plugins: dict[str, dict[str, Any]] = {}
         self.rate_limits: dict[str, int] = {}
+        self.approval_mode: ApprovalMode = ApprovalMode.FIRST_ONLY
+        self.approval_tools: list[str] = []
         self._plugin_schemas: dict[str, type] = {}
 
     @classmethod
@@ -134,6 +138,16 @@ class Config:
             if "rate_limits" in vestibule_config:
                 result["rate_limits"] = vestibule_config["rate_limits"]
 
+        # Extract approval config from [tool.vestibule.approval]
+        if "tool" in data and "vestibule" in data["tool"]:
+            vestibule_config = data["tool"]["vestibule"]
+            if "approval" in vestibule_config:
+                approval_config = vestibule_config["approval"]
+                if "mode" in approval_config:
+                    result["approval_mode"] = approval_config["mode"]
+                if "tools" in approval_config:
+                    result["approval_tools"] = approval_config["tools"]
+
         return result
 
     def _merge(self, other: dict[str, Any]) -> None:
@@ -156,6 +170,11 @@ class Config:
                 self.plugins[plugin_name].update(plugin_config)
         if "rate_limits" in other:
             self.rate_limits.update(other["rate_limits"])
+        if "approval_mode" in other:
+            val = other["approval_mode"]
+            self.approval_mode = val if isinstance(val, ApprovalMode) else ApprovalMode(val)
+        if "approval_tools" in other:
+            self.approval_tools = other["approval_tools"]
 
     def get_plugin_config(self, plugin_name: str) -> dict[str, Any]:
         """Get configuration for a specific plugin."""

@@ -79,6 +79,7 @@ async def handle_tools_call(
     """
     from mcp.server.fastmcp.exceptions import ToolError
 
+    from vestibule.approval import ApprovalRequired, check_approval
     from vestibule.audit import log_tool_call
     from vestibule.rate_limit import RateLimitExceeded, check_rate_limit
 
@@ -96,6 +97,27 @@ async def handle_tools_call(
         return {
             "content": [{"type": "text", "text": str(e)}],
             "isError": True,
+        }
+
+    # Enforce human-in-the-loop approval before executing the call
+    try:
+        check_approval(tool_name)
+    except ApprovalRequired as e:
+        log_tool_call(
+            tool_name=tool_name,
+            arguments=arguments,
+            success=False,
+            error=str(e),
+            session_id=session_id,
+        )
+        return {
+            "content": [{"type": "text", "text": str(e)}],
+            "isError": False,
+            "structuredContent": {
+                "approval_required": True,
+                "tool": tool_name,
+                "arguments": arguments,
+            },
         }
 
     try:

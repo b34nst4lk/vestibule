@@ -294,3 +294,42 @@ list_whitelist = 120
         """Config without rate_limits defaults to empty dict."""
         config = Config()
         assert config.rate_limits == {}
+
+
+class TestConfigApproval:
+    """Test loading approval config from TOML."""
+
+    def test_default_approval(self):
+        """Config defaults to first_only mode with no gated tools."""
+        config = Config()
+        assert config.approval_mode == "first_only"
+        assert config.approval_tools == []
+
+    def test_load_approval(self):
+        """Test loading [tool.vestibule.approval] from config."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            os.chdir(tmpdir)
+            os.environ["HOME"] = "/nonexistent"
+
+            project_config_dir = Path(tmpdir) / ".vestibule"
+            project_config_dir.mkdir()
+            project_config = project_config_dir / "config.toml"
+            project_config.write_text("""
+[tool.vestibule]
+host = "127.0.0.1"
+
+[tool.vestibule.approval]
+mode = "always"
+tools = ["send_email", "add_to_whitelist"]
+""")
+
+            config = Config.load()
+            assert config.approval_mode == "always"
+            assert config.approval_tools == ["send_email", "add_to_whitelist"]
+
+    def test_merge_approval(self):
+        """Test approval config is merged correctly."""
+        config = Config()
+        config._merge({"approval_mode": "never", "approval_tools": ["send_email"]})
+        assert config.approval_mode == "never"
+        assert config.approval_tools == ["send_email"]

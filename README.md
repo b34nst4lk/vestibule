@@ -16,6 +16,7 @@ Think of it as a **gateway between AI and action** — the vestibule controls wh
 - **Secrets Management**: Environment-based secrets with plugin-declared prefixes
 - **TOML Configuration**: Multi-level config merging (CLI > project > user > defaults)
 - **Pydantic Validation**: Plugin configs validated against declared schemas at startup
+- **Human-in-the-Loop Approval**: Gate sensitive tools behind an approval workflow (`never` / `first_only` / `always`)
 - **Fail-Fast**: Server exits with clear errors if config or secrets validation fails
 - **MCP Protocol**: Full support for tools, resources, and prompts
 - **Dual Transport**: Stdio and HTTP/SSE transports
@@ -52,6 +53,10 @@ host = "localhost"
 port = 8080
 transport = "stdio"
 
+[tool.vestibule.approval]
+mode = "first_only"
+tools = ["send_email"]
+
 [tool.vestibule.plugins.email]
 smtp_host = "smtp.gmail.com"
 sender_email = "you@gmail.com"
@@ -78,6 +83,22 @@ uv run python main.py
 # Or use the CLI
 vestibule serve
 ```
+
+## Approval Workflow
+
+Sensitive tools can be gated behind a human-in-the-loop approval check. Configure it under `[tool.vestibule.approval]`:
+
+```toml
+[tool.vestibule.approval]
+mode = "first_only"   # never | first_only | always
+tools = ["send_email"]
+```
+
+- **`never`** — no approval required.
+- **`first_only`** (default) — the first call to a gated tool requires approval; once approved, subsequent calls skip.
+- **`always`** — every call to a gated tool requires approval.
+
+When a gated tool is called and approval is required, the server returns a structured `approval_required` response instead of executing the tool. The client grants approval by calling the built-in **`approve_tool`** tool, then retries the call. Approval state is held in memory only (runtime, not persistent).
 
 ## Available Plugins
 

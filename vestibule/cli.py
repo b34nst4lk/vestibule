@@ -60,6 +60,11 @@ def serve(
 
     configure_rate_limits(cfg.rate_limits)
 
+    # Configure the shared approval tracker from config
+    from vestibule.approval import configure_approval
+
+    configure_approval(cfg.approval_mode, cfg.approval_tools)
+
     # CLI args override config file settings
     final_host = host or cfg.host
     final_port = port or cfg.port
@@ -86,6 +91,15 @@ def serve(
 
     # Create the MCP server
     server = FastMCP("Vestibule")
+
+    # Register the built-in approval tool so clients can grant approval
+    @server.tool()
+    def approve_tool(tool_name: str) -> str:
+        """Approve a tool for execution (grants human-in-the-loop approval)."""
+        from vestibule.approval import grant_approval
+
+        grant_approval(tool_name)
+        return f"Approved tool '{tool_name}'."
 
     # Register plugin tools, resources, and prompts
     pm.register_tools(server)
