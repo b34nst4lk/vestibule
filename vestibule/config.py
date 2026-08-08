@@ -48,6 +48,7 @@ class Config:
         self.rate_limits: dict[str, int] = {}
         self.approval_mode: ApprovalMode = ApprovalMode.FIRST_ONLY
         self.approval_tools: list[str] = []
+        self.approval_overrides: dict[str, ApprovalMode] = {}
         self._plugin_schemas: dict[str, type] = {}
 
     @classmethod
@@ -147,6 +148,8 @@ class Config:
                     result["approval_mode"] = approval_config["mode"]
                 if "tools" in approval_config:
                     result["approval_tools"] = approval_config["tools"]
+                if "overrides" in approval_config:
+                    result["approval_overrides"] = approval_config["overrides"]
 
         return result
 
@@ -175,6 +178,11 @@ class Config:
             self.approval_mode = val if isinstance(val, ApprovalMode) else ApprovalMode(val)
         if "approval_tools" in other:
             self.approval_tools = other["approval_tools"]
+        if "approval_overrides" in other:
+            self.approval_overrides = {
+                name: (val if isinstance(val, ApprovalMode) else ApprovalMode(val))
+                for name, val in other["approval_overrides"].items()
+            }
 
     def get_plugin_config(self, plugin_name: str) -> dict[str, Any]:
         """Get configuration for a specific plugin."""

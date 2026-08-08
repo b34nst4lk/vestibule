@@ -92,11 +92,17 @@ Sensitive tools can be gated behind a human-in-the-loop approval check. Configur
 [tool.vestibule.approval]
 mode = "first_only"   # never | first_only | always
 tools = ["send_email"]
+
+[tool.vestibule.approval.overrides]
+send_whitelisted_emails = "never"   # always allow
+other_plugin_tool = "always"        # always require approval
 ```
 
 - **`never`** — no approval required.
 - **`first_only`** (default) — the first call to a gated tool requires approval; once approved, subsequent calls skip.
 - **`always`** — every call to a gated tool requires approval.
+
+`tools` lists the tools gated by the default `mode`. `[tool.vestibule.approval.overrides]` lets you set a **per-tool mode** that overrides the default — so you can always allow one tool while always requiring approval for another, even across different plugins. Tools not listed in `tools` or `overrides` are not gated.
 
 When a gated tool is called and approval is required, the server returns a structured `approval_required` response instead of executing the tool. The client grants approval by calling the built-in **`approve_tool`** tool, then retries the call. Approval state is held in memory only (runtime, not persistent).
 

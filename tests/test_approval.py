@@ -93,6 +93,60 @@ class TestApprovalTracker:
         assert tracker.is_gated("send_email")
         assert not tracker.is_gated("list_whitelist")
 
+    def test_override_never_allows_tool(self):
+        """A tool overridden to never is always allowed, even if gated by default."""
+        tracker = ApprovalTracker(
+            mode=ApprovalMode.FIRST_ONLY,
+            tools=["send_email"],
+            overrides={"send_email": ApprovalMode.NEVER},
+        )
+        tracker.check("send_email")  # should not raise
+
+    def test_override_always_requires_each_call(self):
+        """A tool overridden to always requires approval on every call."""
+        tracker = ApprovalTracker(
+            mode=ApprovalMode.FIRST_ONLY,
+            tools=["send_email"],
+            overrides={"send_email": ApprovalMode.ALWAYS},
+        )
+        with pytest.raises(ApprovalRequired):
+            tracker.check("send_email")
+        tracker.approve("send_email")
+        tracker.check("send_email")  # one-time approval consumed
+        with pytest.raises(ApprovalRequired):
+            tracker.check("send_email")
+
+    def test_override_applies_to_tool_not_in_list(self):
+        """An override gates a tool even if it is not in the tools list."""
+        tracker = ApprovalTracker(
+            mode=ApprovalMode.FIRST_ONLY,
+            tools=["send_email"],
+            overrides={"other_tool": ApprovalMode.ALWAYS},
+        )
+        with pytest.raises(ApprovalRequired):
+            tracker.check("other_tool")
+
+    def test_mixed_policies(self):
+        """Different tools can have different policies simultaneously."""
+        tracker = ApprovalTracker(
+            mode=ApprovalMode.FIRST_ONLY,
+            tools=["send_email"],
+            overrides={
+                "send_whitelisted_emails": ApprovalMode.NEVER,
+                "other_plugin_tool": ApprovalMode.ALWAYS,
+            },
+        )
+        # always allowed
+        tracker.check("send_whitelisted_emails")
+        # always requires approval
+        with pytest.raises(ApprovalRequired):
+            tracker.check("other_plugin_tool")
+        # default first_only for the tools list
+        with pytest.raises(ApprovalRequired):
+            tracker.check("send_email")
+        # not gated at all
+        tracker.check("list_whitelist")
+
 
 class TestApprovalGate:
     """Tests for the approval gate in the shared tool-call handler."""

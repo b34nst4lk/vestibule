@@ -51,9 +51,14 @@ class ApprovalTracker:
         self,
         mode: ApprovalMode | str = DEFAULT_APPROVAL_MODE,
         tools: list[str] | None = None,
+        overrides: dict[str, ApprovalMode | str] | None = None,
     ):
-        self._mode = ApprovalMode(mode)
+        self._default_mode = ApprovalMode(mode)
         self._gated: set[str] = set(tools or [])
+        # Per-tool mode overrides: tool name -> its own approval mode.
+        self._overrides: dict[str, ApprovalMode] = {
+            name: ApprovalMode(m) for name, m in (overrides or {}).items()
+        }
         # Sticky approvals (first_only): once approved, stays approved.
         self._approved: set[str] = set()
         # One-time approvals (always): consumed by the next call.
@@ -64,17 +69,27 @@ class ApprovalTracker:
         self,
         mode: ApprovalMode | str,
         tools: list[str] | None = None,
+        overrides: dict[str, ApprovalMode | str] | None = None,
     ) -> None:
         """(Re)configure the tracker, resetting all approval state."""
         with self._lock:
-            self._mode = ApprovalMode(mode)
+            self._default_mode = ApprovalMode(mode)
             self._gated = set(tools or [])
+            self._overrides = {name: ApprovalMode(m) for name, m in (overrides or {}).items()}
             self._approved.clear()
             self._pending.clear()
 
+    def _mode_for(self, tool_name: str) -> ApprovalMode | None:
+        """Return the effective approval mode for a tool, or None if not gated."""
+        if tool_name in self._overrides:
+            return self._overrides[tool_name]
+        if tool_name in self._gated:
+            return self._default_mode
+        return None
+
     def is_gated(self, tool_name: str) -> bool:
-        """Return True if the tool is in the approval-gated set."""
-        return tool_name in self._gated
+        """Return True if the tool has any approval policy applied."""
+        return self._mode_for(tool_name) is not None
 
     def check(self, tool_name: str) -> None:
         """
@@ -87,15 +102,14 @@ class ApprovalTracker:
             ApprovalRequired: If the tool call requires human approval.
         """
         with self._lock:
-            if self._mode == ApprovalMode.NEVER:
-                return
-            if tool_name not in self._gated:
+            mode = self._mode_for(tool_name)
+            if mode is None or mode == ApprovalMode.NEVER:
                 return
             # A one-time approval (always mode) is consumed by this call.
             if tool_name in self._pending:
                 self._pending.discard(tool_name)
                 return
-            if self._mode == ApprovalMode.FIRST_ONLY and tool_name in self._approved:
+            if mode == ApprovalMode.FIRST_ONLY and tool_name in self._approved:
                 return
             raise ApprovalRequired(tool_name)
 
@@ -107,7 +121,7 @@ class ApprovalTracker:
         call); in ``first_only`` mode it is sticky.
         """
         with self._lock:
-            if self._mode == ApprovalMode.ALWAYS:
+            if self._mode_for(tool_name) == ApprovalMode.ALWAYS:
                 self._pending.add(tool_name)
             else:
                 self._approved.add(tool_name)
@@ -131,9 +145,10 @@ _tracker = ApprovalTracker()
 def configure_approval(
     mode: ApprovalMode | str,
     tools: list[str] | None = None,
+    overrides: dict[str, ApprovalMode | str] | None = None,
 ) -> None:
     """Configure the shared approval tracker (called at server startup)."""
-    _tracker.configure(mode, tools)
+    _tracker.configure(mode, tools, overrides)
 
 
 def check_approval(tool_name: str) -> None:

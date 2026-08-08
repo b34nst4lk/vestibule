@@ -18,11 +18,16 @@ log-level = "info"
 #   never      - no approval required
 #   first_only - first call to a gated tool needs approval, then sticky
 #   always     - every call to a gated tool needs approval
-# tools: list of tool names that require approval
+# tools: list of tool names gated by the default mode
+# overrides: per-tool mode overrides (tool name -> its own mode)
 
 [tool.vestibule.approval]
 mode = "first_only"
 tools = ["send_email"]
+
+[tool.vestibule.approval.overrides]
+send_whitelisted_emails = "never"
+other_plugin_tool = "always"
 
 # -----------------------------------------------------------------------------
 # Rate Limiting (requests per minute per tool)

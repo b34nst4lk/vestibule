@@ -63,7 +63,7 @@ def serve(
     # Configure the shared approval tracker from config
     from vestibule.approval import configure_approval
 
-    configure_approval(cfg.approval_mode, cfg.approval_tools)
+    configure_approval(cfg.approval_mode, cfg.approval_tools, cfg.approval_overrides)
 
     # CLI args override config file settings
     final_host = host or cfg.host

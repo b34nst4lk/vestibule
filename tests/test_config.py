@@ -304,6 +304,7 @@ class TestConfigApproval:
         config = Config()
         assert config.approval_mode == "first_only"
         assert config.approval_tools == []
+        assert config.approval_overrides == {}
 
     def test_load_approval(self):
         """Test loading [tool.vestibule.approval] from config."""
@@ -321,15 +322,30 @@ host = "127.0.0.1"
 [tool.vestibule.approval]
 mode = "always"
 tools = ["send_email", "add_to_whitelist"]
+
+[tool.vestibule.approval.overrides]
+send_whitelisted_emails = "never"
+other_plugin_tool = "always"
 """)
 
             config = Config.load()
             assert config.approval_mode == "always"
             assert config.approval_tools == ["send_email", "add_to_whitelist"]
+            assert config.approval_overrides == {
+                "send_whitelisted_emails": "never",
+                "other_plugin_tool": "always",
+            }
 
     def test_merge_approval(self):
         """Test approval config is merged correctly."""
         config = Config()
-        config._merge({"approval_mode": "never", "approval_tools": ["send_email"]})
+        config._merge(
+            {
+                "approval_mode": "never",
+                "approval_tools": ["send_email"],
+                "approval_overrides": {"other_tool": "always"},
+            }
+        )
         assert config.approval_mode == "never"
         assert config.approval_tools == ["send_email"]
+        assert config.approval_overrides == {"other_tool": "always"}
