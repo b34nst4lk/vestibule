@@ -127,6 +127,14 @@ class TestStdioTransport:
         assert "result" in result
         assert result["result"]["serverInfo"]["name"] == "vestibule"
 
+    def _approve(self, stdio_server: MCPStdioProcess, tool_name: str) -> None:
+        """Grant approval for a tool via the built-in approve_tool."""
+        result = stdio_server.jsonrpc_request(
+            "tools/call",
+            {"name": "approve_tool", "arguments": {"tool_name": tool_name}},
+        )
+        assert "error" not in result
+
     def test_list_tools(self, stdio_server: MCPStdioProcess):
         """Verify email plugin tools are registered."""
         # First initialize
@@ -176,6 +184,7 @@ class TestStdioTransport:
     def test_send_email_recipient_not_found(self, stdio_server: MCPStdioProcess):
         """Test send_email error when recipient is not in whitelist."""
         stdio_server.jsonrpc_request("initialize", {"protocolVersion": "2024-11-05"})
+        self._approve(stdio_server, "email.send_email")
 
         result = stdio_server.jsonrpc_request(
             "tools/call",
@@ -198,6 +207,7 @@ class TestStdioTransport:
     def test_add_to_whitelist(self, stdio_server: MCPStdioProcess):
         """Test adding a new recipient to the whitelist."""
         stdio_server.jsonrpc_request("initialize", {"protocolVersion": "2024-11-05"})
+        self._approve(stdio_server, "email.add_to_whitelist")
 
         result = stdio_server.jsonrpc_request(
             "tools/call",
@@ -219,6 +229,7 @@ class TestStdioTransport:
     def test_add_to_whitelist_invalid_email(self, stdio_server: MCPStdioProcess):
         """Test add_to_whitelist rejects invalid email format."""
         stdio_server.jsonrpc_request("initialize", {"protocolVersion": "2024-11-05"})
+        self._approve(stdio_server, "email.add_to_whitelist")
 
         result = stdio_server.jsonrpc_request(
             "tools/call",
@@ -236,3 +247,57 @@ class TestStdioTransport:
         content_text = result["result"]["content"][0]["text"]
         assert "Invalid" in content_text or "invalid" in content_text.lower()
         assert "email" in content_text.lower()
+
+    def test_approval_flow(self, stdio_server: MCPStdioProcess):
+        """Gated tool requires approval; approve_tool grants it; retry executes."""
+        stdio_server.jsonrpc_request("initialize", {"protocolVersion": "2024-11-05"})
+
+        # First call to the gated email.send_email tool requires approval.
+        gated = stdio_server.jsonrpc_request(
+            "tools/call",
+            {
+                "name": "email.send_email",
+                "arguments": {
+                    "recipient_name": "alice",
+                    "subject": "Hello",
+                    "body": "Approval flow test",
+                },
+            },
+        )
+        print(f"gated result: {gated}")
+        assert "error" not in gated
+        structured = gated["result"]["structuredContent"]
+        assert structured["approval_required"] is True
+        assert structured["tool"] == "email.send_email"
+        assert structured["arguments"]["recipient_name"] == "alice"
+
+        # Grant approval via the built-in approve_tool.
+        approved = stdio_server.jsonrpc_request(
+            "tools/call",
+            {
+                "name": "approve_tool",
+                "arguments": {"tool_name": "email.send_email"},
+            },
+        )
+        print(f"approve result: {approved}")
+        assert "error" not in approved
+
+        # Retry the original call: it should now execute.
+        retry = stdio_server.jsonrpc_request(
+            "tools/call",
+            {
+                "name": "email.send_email",
+                "arguments": {
+                    "recipient_name": "alice",
+                    "subject": "Hello",
+                    "body": "Approval flow test",
+                },
+            },
+        )
+        print(f"retry result: {retry}")
+        assert "error" not in retry
+        assert retry["result"]["isError"] is False
+        # The tool executed (gate bypassed); the fake SMTP host fails to send,
+        # but the response is no longer an approval-required soft stop.
+        content_text = retry["result"]["content"][0]["text"]
+        assert "Approval required" not in content_text

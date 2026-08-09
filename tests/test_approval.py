@@ -3,6 +3,7 @@ Tests for the human-in-the-loop approval workflow module.
 """
 
 import pytest
+from mcp.server.fastmcp import FastMCP
 
 from vestibule.approval import (
     ApprovalMode,
@@ -197,6 +198,8 @@ class TestApprovalGate:
         assert result["isError"] is False
         assert result["structuredContent"]["approval_required"] is True
         assert result["structuredContent"]["tool"] == "send_email"
+        # Original arguments are mirrored so clients can re-play the call.
+        assert result["structuredContent"]["arguments"] == {"to": "a@b.c"}
         assert "approve_tool" in result["content"][0]["text"]
 
     async def test_approved_tool_executes(self):
@@ -224,4 +227,77 @@ class TestApprovalGate:
         result = await handle_tools_call(server, "list_whitelist", {})
 
         assert calls == [("list_whitelist", {})]
+        assert result["isError"] is False
+
+    async def test_never_mode_bypasses_approval(self):
+        """A never policy fully bypasses the gate."""
+        from vestibule.approval import configure_approval
+        from vestibule.transports.common import handle_tools_call
+
+        configure_approval(policies={"send_email": "never"})
+        server, calls = self._make_server()
+
+        result = await handle_tools_call(server, "send_email", {"to": "a@b.c"})
+
+        assert calls == [("send_email", {"to": "a@b.c"})]
+        assert result["isError"] is False
+
+    async def test_always_mode_requires_approval_each_call(self):
+        """In always mode, every call requires approval, even after approval."""
+        from vestibule.approval import configure_approval, grant_approval
+        from vestibule.transports.common import handle_tools_call
+
+        configure_approval(policies={"send_email": "always"})
+        server, calls = self._make_server()
+
+        # First call requires approval.
+        result = await handle_tools_call(server, "send_email", {"to": "a@b.c"})
+        assert result["structuredContent"]["approval_required"] is True
+        assert calls == []
+
+        # Approve and retry -> executes.
+        grant_approval("send_email")
+        result = await handle_tools_call(server, "send_email", {"to": "a@b.c"})
+        assert calls == [("send_email", {"to": "a@b.c"})]
+
+        # Next call requires approval again.
+        result = await handle_tools_call(server, "send_email", {"to": "a@b.c"})
+        assert result["structuredContent"]["approval_required"] is True
+        assert calls == [("send_email", {"to": "a@b.c"})]
+
+    async def test_approve_tool_mcp_grants_approval(self):
+        """The built-in approve_tool MCP tool grants approval and unblocks the call."""
+        from vestibule.approval import (
+            APPROVE_TOOL_NAME,
+            configure_approval,
+            grant_approval,
+        )
+        from vestibule.transports.common import handle_tools_call
+
+        server = FastMCP("test")
+        calls = []
+
+        @server.tool()
+        async def send_email(to: str) -> str:
+            calls.append(to)
+            return "sent"
+
+        @server.tool(name=APPROVE_TOOL_NAME)
+        def approve_tool(tool_name: str) -> str:
+            grant_approval(tool_name)
+            return f"Approved {tool_name}"
+
+        configure_approval(policies={"send_email": "always"})
+
+        # First call requires approval.
+        result = await handle_tools_call(server, "send_email", {"to": "a@b.c"})
+        assert result["structuredContent"]["approval_required"] is True
+        assert calls == []
+
+        # Grant via the built-in approve_tool MCP tool.
+        await server.call_tool(APPROVE_TOOL_NAME, {"tool_name": "send_email"})
+
+        # Retry executes.
+        result = await handle_tools_call(server, "send_email", {"to": "a@b.c"})
+        assert calls == ["a@b.c"]
         assert result["isError"] is False

@@ -270,3 +270,25 @@ class TestPluginManager:
 
         policies = pm.collect_approval_policies()
         assert policies == {}
+
+    def test_collect_approval_policies_invalid(self):
+        """Plugins returning non-dict or raising are skipped; valid ones kept."""
+        pm = PluginManager()
+        pm.pm.register(MockPlugin(), "mock")
+        pm._plugins["mock"] = MockPlugin()
+
+        class InvalidPolicyPlugin:
+            def vestibule_approval_policy(self):
+                return ["not", "a", "dict"]
+
+        class ErrorPolicyPlugin:
+            def vestibule_approval_policy(self):
+                raise RuntimeError("policy error")
+
+        pm.pm.register(InvalidPolicyPlugin(), "invalid_return")
+        pm._plugins["invalid_return"] = InvalidPolicyPlugin()
+        pm.pm.register(ErrorPolicyPlugin(), "error_policy")
+        pm._plugins["error_policy"] = ErrorPolicyPlugin()
+
+        policies = pm.collect_approval_policies()
+        assert policies == {"mock.mock_tool": "first_only"}

@@ -135,10 +135,25 @@ def test_send_email_recipient_not_found_http(http_client: httpx.Client):
     }
     http_client.post("/mcp", json=init_request, timeout=5.0)
 
+    # Grant approval for the gated send_email tool.
+    http_client.post(
+        "/mcp",
+        json={
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/call",
+            "params": {
+                "name": "approve_tool",
+                "arguments": {"tool_name": "email.send_email"},
+            },
+        },
+        timeout=5.0,
+    )
+
     # Call tool
     call_request = {
         "jsonrpc": "2.0",
-        "id": 2,
+        "id": 3,
         "method": "tools/call",
         "params": {
             "name": "email.send_email",
@@ -158,3 +173,85 @@ def test_send_email_recipient_not_found_http(http_client: httpx.Client):
     # so isError is False but the content contains the error message
     assert "whitelist" in content.lower()
     assert "Unknown" in content
+
+
+@pytest.mark.integration
+@pytest.mark.http
+def test_approval_flow_http(http_client: httpx.Client):
+    """Gated tool requires approval; approve_tool grants it; retry executes."""
+    init_request = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": {"name": "test", "version": "1.0"},
+        },
+    }
+    http_client.post("/mcp", json=init_request, timeout=5.0)
+
+    # First call to the gated email.send_email tool requires approval.
+    gated = http_client.post(
+        "/mcp",
+        json={
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/call",
+            "params": {
+                "name": "email.send_email",
+                "arguments": {
+                    "recipient_name": "alice",
+                    "subject": "Hello",
+                    "body": "Approval flow test",
+                },
+            },
+        },
+        timeout=5.0,
+    ).json()
+    assert "result" in gated
+    structured = gated["result"]["structuredContent"]
+    assert structured["approval_required"] is True
+    assert structured["tool"] == "email.send_email"
+    assert structured["arguments"]["recipient_name"] == "alice"
+
+    # Grant approval via the built-in approve_tool.
+    approved = http_client.post(
+        "/mcp",
+        json={
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {
+                "name": "approve_tool",
+                "arguments": {"tool_name": "email.send_email"},
+            },
+        },
+        timeout=5.0,
+    ).json()
+    assert "result" in approved
+
+    # Retry the original call: it should now execute.
+    retry = http_client.post(
+        "/mcp",
+        json={
+            "jsonrpc": "2.0",
+            "id": 4,
+            "method": "tools/call",
+            "params": {
+                "name": "email.send_email",
+                "arguments": {
+                    "recipient_name": "alice",
+                    "subject": "Hello",
+                    "body": "Approval flow test",
+                },
+            },
+        },
+        timeout=5.0,
+    ).json()
+    assert "result" in retry
+    assert retry["result"]["isError"] is False
+    # The tool executed (gate bypassed); the fake SMTP host fails to send,
+    # but the response is no longer an approval-required soft stop.
+    content = retry["result"]["content"][0]["text"]
+    assert "Approval required" not in content

@@ -101,6 +101,27 @@ async def main() -> int:
     plugin_manager = PluginManager()
     plugin_manager.load_all()
 
+    # Configure the shared approval tracker from plugin-declared policies
+    # plus operator overrides. Plugins must be loaded first so their
+    # vestibule_approval_policy hooks are available.
+    from vestibule.approval import (
+        APPROVE_TOOL_NAME,
+        configure_approval,
+        grant_approval,
+    )
+    from vestibule.config import Config
+
+    cfg = Config.load()
+    policies = plugin_manager.collect_approval_policies()
+    configure_approval(cfg.approval_enabled, policies, cfg.approval_overrides)
+
+    # Register the built-in approval tool so clients can grant approval
+    @mcp_server.tool(name=APPROVE_TOOL_NAME)
+    def approve_tool(tool_name: str) -> str:
+        """Approve a tool for execution (grants human-in-the-loop approval)."""
+        grant_approval(tool_name)
+        return f"Approved tool '{tool_name}'."
+
     # Register tools, resources, and prompts from plugins
     plugin_manager.register_tools(mcp_server)
     plugin_manager.register_resources(mcp_server)

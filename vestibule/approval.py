@@ -57,23 +57,23 @@ class ApprovalRequired(Exception):
 
 
 class ApprovalTracker:
-    """Thread-safe tracker for tool approval state."""
+    """Thread-safe tracker for tool approval state.
+
+    Policies and overrides are expected to be pre-normalized to
+    ``dict[str, ApprovalMode]`` (see :func:`normalize_approval_modes`).
+    """
 
     def __init__(
         self,
         enabled: bool = True,
-        policies: dict[str, ApprovalMode | str] | None = None,
-        overrides: dict[str, ApprovalMode | str] | None = None,
+        policies: dict[str, ApprovalMode] | None = None,
+        overrides: dict[str, ApprovalMode] | None = None,
     ):
         self._enabled = enabled
         # Plugin-declared per-tool policies (the defaults).
-        self._policies: dict[str, ApprovalMode] = {
-            name: ApprovalMode(m) for name, m in (policies or {}).items()
-        }
+        self._policies: dict[str, ApprovalMode] = dict(policies or {})
         # Operator per-tool overrides (win over plugin policies).
-        self._overrides: dict[str, ApprovalMode] = {
-            name: ApprovalMode(m) for name, m in (overrides or {}).items()
-        }
+        self._overrides: dict[str, ApprovalMode] = dict(overrides or {})
         # Sticky approvals (first_only): once approved, stays approved.
         self._approved: set[str] = set()
         # One-time approvals (always): consumed by the next call.
@@ -83,14 +83,14 @@ class ApprovalTracker:
     def configure(
         self,
         enabled: bool = True,
-        policies: dict[str, ApprovalMode | str] | None = None,
-        overrides: dict[str, ApprovalMode | str] | None = None,
+        policies: dict[str, ApprovalMode] | None = None,
+        overrides: dict[str, ApprovalMode] | None = None,
     ) -> None:
         """(Re)configure the tracker, resetting all approval state."""
         with self._lock:
             self._enabled = enabled
-            self._policies = {name: ApprovalMode(m) for name, m in (policies or {}).items()}
-            self._overrides = {name: ApprovalMode(m) for name, m in (overrides or {}).items()}
+            self._policies = dict(policies or {})
+            self._overrides = dict(overrides or {})
             self._approved.clear()
             self._pending.clear()
 
@@ -164,13 +164,44 @@ class ApprovalTracker:
 _tracker = ApprovalTracker()
 
 
+def normalize_approval_modes(
+    modes: dict[str, ApprovalMode | str] | None,
+) -> dict[str, ApprovalMode]:
+    """Normalize a mapping of tool name -> mode to ``ApprovalMode`` values.
+
+    Accepts either ``ApprovalMode`` members or their string values. Raises
+    ``ValueError`` if a value is not a supported mode, so misconfigurations
+    surface at load time rather than failing later at runtime.
+    """
+    if not modes:
+        return {}
+    normalized: dict[str, ApprovalMode] = {}
+    for name, mode in modes.items():
+        if isinstance(mode, ApprovalMode):
+            normalized[name] = mode
+        else:
+            try:
+                normalized[name] = ApprovalMode(mode)
+            except ValueError:
+                supported = ", ".join(m.value for m in ApprovalMode)
+                raise ValueError(
+                    f"Invalid approval mode '{mode}' for tool '{name}'. "
+                    f"Supported modes: {supported}."
+                ) from None
+    return normalized
+
+
 def configure_approval(
     enabled: bool = True,
     policies: dict[str, ApprovalMode | str] | None = None,
     overrides: dict[str, ApprovalMode | str] | None = None,
 ) -> None:
     """Configure the shared approval tracker (called at server startup)."""
-    _tracker.configure(enabled, policies, overrides)
+    _tracker.configure(
+        enabled,
+        normalize_approval_modes(policies),
+        normalize_approval_modes(overrides),
+    )
 
 
 def check_approval(tool_name: str) -> None:

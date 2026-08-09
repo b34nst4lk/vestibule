@@ -5,6 +5,7 @@ Handles plugin discovery, loading, and coordination of hook calls.
 """
 
 import importlib.metadata
+import logging
 from typing import Any
 
 import pluggy
@@ -12,6 +13,8 @@ from mcp.server.fastmcp import FastMCP
 
 from . import hooks
 from .hooks import PluginMetadata
+
+logger = logging.getLogger(__name__)
 
 
 class _NamespacedServer:
@@ -253,12 +256,24 @@ class PluginManager:
         policies: dict[str, str] = {}
         for plugin_name in self._plugins:
             plugin = self._plugins[plugin_name]
-            if hasattr(plugin, "vestibule_approval_policy"):
-                try:
-                    result = plugin.vestibule_approval_policy()
-                    if result:
-                        for tool, mode in result.items():
-                            policies[f"{plugin_name}.{tool}"] = mode
-                except Exception:
-                    pass  # Plugin doesn't declare an approval policy
+            if not hasattr(plugin, "vestibule_approval_policy"):
+                continue
+            try:
+                result = plugin.vestibule_approval_policy()
+            except Exception as exc:  # noqa: BLE001 - surface plugin failures
+                logger.warning(
+                    "Plugin '%s' raised an error in vestibule_approval_policy: %s",
+                    plugin_name,
+                    exc,
+                )
+                continue
+            if not isinstance(result, dict):
+                logger.warning(
+                    "Plugin '%s' returned a non-dict approval policy (%s); skipping.",
+                    plugin_name,
+                    type(result).__name__,
+                )
+                continue
+            for tool, mode in result.items():
+                policies[f"{plugin_name}.{tool}"] = mode
         return policies

@@ -10,7 +10,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from .approval import ApprovalMode
+from .approval import ApprovalMode, normalize_approval_modes
 
 
 class ConfigValidationError(Exception):
@@ -173,10 +173,7 @@ class Config:
         if "approval_enabled" in other:
             self.approval_enabled = other["approval_enabled"]
         if "approval_overrides" in other:
-            self.approval_overrides = {
-                name: (val if isinstance(val, ApprovalMode) else ApprovalMode(val))
-                for name, val in other["approval_overrides"].items()
-            }
+            self.approval_overrides = normalize_approval_modes(other["approval_overrides"])
 
     def get_plugin_config(self, plugin_name: str) -> dict[str, Any]:
         """Get configuration for a specific plugin."""
