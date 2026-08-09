@@ -1,5 +1,6 @@
 """Tests for Vestibule hook specifications and plugin manager."""
 
+import pytest
 from mcp.server.fastmcp import FastMCP
 
 from vestibule.hooks import (
@@ -121,6 +122,22 @@ class MockPluginWithMissingSecrets:
         return "broken", False, "MISSING_SECRET is required"
 
 
+class MockPluginDuplicateTool:
+    """Mock plugin that registers two tools with the same name."""
+
+    @hookimpl
+    def vestibule_register_tools(self, mcp_server: FastMCP) -> None:
+        @mcp_server.tool()
+        def mock_tool(x: int) -> int:
+            """A mock tool."""
+            return x
+
+        @mcp_server.tool()
+        def mock_tool(x: int) -> int:  # noqa: F811 - intentional duplicate to test collision detection
+            """A duplicate mock tool."""
+            return x * 2
+
+
 class TestPluginManager:
     """Tests for PluginManager class."""
 
@@ -143,23 +160,25 @@ class TestPluginManager:
         assert pm.get_loaded_plugins() == []
 
     def test_register_tools(self):
-        """Test registering tools via plugin manager."""
+        """Test registering tools via plugin manager (namespaced by plugin)."""
         pm = PluginManager()
         pm.pm.register(MockPlugin(), "mock")
+        pm._plugins["mock"] = MockPlugin()
 
         server = FastMCP("test-server")
         pm.register_tools(server)
 
-        # Check that tools were registered
+        # Check that tools were registered under the plugin namespace
         tools = server._tool_manager.list_tools()
         assert len(tools) > 0
         tool_names = [t.name for t in tools]
-        assert "mock_tool" in tool_names
+        assert "mock.mock_tool" in tool_names
 
     def test_register_resources(self):
         """Test registering resources via plugin manager."""
         pm = PluginManager()
         pm.pm.register(MockPlugin(), "mock")
+        pm._plugins["mock"] = MockPlugin()
 
         server = FastMCP("test-server")
         pm.register_resources(server)
@@ -169,18 +188,29 @@ class TestPluginManager:
         assert len(resources) > 0
 
     def test_register_prompts(self):
-        """Test registering prompts via plugin manager."""
+        """Test registering prompts via plugin manager (namespaced by plugin)."""
         pm = PluginManager()
         pm.pm.register(MockPlugin(), "mock")
+        pm._plugins["mock"] = MockPlugin()
 
         server = FastMCP("test-server")
         pm.register_prompts(server)
 
-        # Check that prompts were registered
+        # Check that prompts were registered under the plugin namespace
         prompts = server._prompt_manager.list_prompts()
         assert len(prompts) > 0
         prompt_names = [p.name for p in prompts]
-        assert "mock_prompt" in prompt_names
+        assert "mock.mock_prompt" in prompt_names
+
+    def test_register_tools_duplicate_name_raises(self):
+        """A plugin registering the same tool name twice fails loudly."""
+        pm = PluginManager()
+        pm.pm.register(MockPluginDuplicateTool(), "mock")
+        pm._plugins["mock"] = MockPluginDuplicateTool()
+
+        server = FastMCP("test-server")
+        with pytest.raises(ValueError, match="Duplicate tool name"):
+            pm.register_tools(server)
 
     def test_validate_secrets_success(self):
         """Test successful secret validation."""
@@ -224,13 +254,13 @@ class TestPluginManager:
         assert meta is None
 
     def test_collect_approval_policies(self):
-        """Test collecting approval policies from loaded plugins."""
+        """Test collecting approval policies from loaded plugins (namespaced)."""
         pm = PluginManager()
         pm.pm.register(MockPlugin(), "mock")
         pm._plugins["mock"] = MockPlugin()
 
         policies = pm.collect_approval_policies()
-        assert policies == {"mock_tool": "first_only"}
+        assert policies == {"mock.mock_tool": "first_only"}
 
     def test_collect_approval_policies_empty(self):
         """Test collecting approval policies with no plugins declaring one."""

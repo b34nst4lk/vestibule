@@ -80,9 +80,9 @@ def test_list_tools_http(http_client: httpx.Client):
     tools = result["result"]["tools"]
     tool_names = {t["name"] for t in tools}
 
-    assert "send_email" in tool_names
-    assert "list_whitelist" in tool_names
-    assert "add_to_whitelist" in tool_names
+    assert "email.send_email" in tool_names
+    assert "email.list_whitelist" in tool_names
+    assert "email.add_to_whitelist" in tool_names
 
 
 @pytest.mark.integration
@@ -107,7 +107,7 @@ def test_list_whitelist_http(http_client: httpx.Client):
         "jsonrpc": "2.0",
         "id": 2,
         "method": "tools/call",
-        "params": {"name": "list_whitelist", "arguments": {}},
+        "params": {"name": "email.list_whitelist", "arguments": {}},
     }
     response = http_client.post("/mcp", json=call_request, timeout=5.0)
     assert response.status_code == 200
@@ -141,7 +141,7 @@ def test_send_email_recipient_not_found_http(http_client: httpx.Client):
         "id": 2,
         "method": "tools/call",
         "params": {
-            "name": "send_email",
+            "name": "email.send_email",
             "arguments": {
                 "recipient_name": "Unknown",
                 "subject": "Test Subject",

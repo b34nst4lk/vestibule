@@ -144,9 +144,9 @@ class TestStdioTransport:
         tools = result["result"]["tools"]
         tool_names = {t["name"] for t in tools}
 
-        assert "send_email" in tool_names
-        assert "list_whitelist" in tool_names
-        assert "add_to_whitelist" in tool_names
+        assert "email.send_email" in tool_names
+        assert "email.list_whitelist" in tool_names
+        assert "email.add_to_whitelist" in tool_names
 
     def test_ping(self, stdio_server: MCPStdioProcess):
         """Test ping request/response."""
@@ -160,7 +160,7 @@ class TestStdioTransport:
 
         # Use tools/call protocol to invoke plugin tools
         result = stdio_server.jsonrpc_request(
-            "tools/call", {"name": "list_whitelist", "arguments": {}}
+            "tools/call", {"name": "email.list_whitelist", "arguments": {}}
         )
         print(f"list_whitelist result: {result}")
 
@@ -180,7 +180,7 @@ class TestStdioTransport:
         result = stdio_server.jsonrpc_request(
             "tools/call",
             {
-                "name": "send_email",
+                "name": "email.send_email",
                 "arguments": {
                     "recipient_name": "Unknown",
                     "subject": "Test Subject",
@@ -202,7 +202,7 @@ class TestStdioTransport:
         result = stdio_server.jsonrpc_request(
             "tools/call",
             {
-                "name": "add_to_whitelist",
+                "name": "email.add_to_whitelist",
                 "arguments": {
                     "name": "Charlie",
                     "email": "charlie@example.com",
@@ -223,7 +223,7 @@ class TestStdioTransport:
         result = stdio_server.jsonrpc_request(
             "tools/call",
             {
-                "name": "add_to_whitelist",
+                "name": "email.add_to_whitelist",
                 "arguments": {
                     "name": "Invalid",
                     "email": "notanemail",

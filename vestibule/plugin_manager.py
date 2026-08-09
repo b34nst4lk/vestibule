@@ -14,6 +14,56 @@ from . import hooks
 from .hooks import PluginMetadata
 
 
+class _NamespacedServer:
+    """Thin FastMCP proxy that prefixes tool/prompt names with a plugin name.
+
+    Plugins register tools with bare names; the plugin manager wraps the real
+    server so each tool is exposed as ``<plugin_name>.<tool_name>``. This makes
+    tool names globally unique across plugins and lets approval policies and
+    operator overrides target a specific plugin's tool unambiguously.
+
+    A shared ``registry`` (set of full names) is passed to every wrapper so a
+    duplicate name across plugins fails loudly instead of silently overwriting.
+    """
+
+    def __init__(self, server: FastMCP, prefix: str, registry: set[str]):
+        self._server = server
+        self._prefix = prefix
+        self._registry = registry
+
+    def tool(self, name: str | None = None, **kwargs):
+        """Register a tool under ``<prefix>.<name>``."""
+
+        def deco(fn):
+            full = f"{self._prefix}.{name or fn.__name__}"
+            self._claim(full, "tool")
+            return self._server.tool(name=full, **kwargs)(fn)
+
+        return deco
+
+    def prompt(self, name: str | None = None, **kwargs):
+        """Register a prompt under ``<prefix>.<name>``."""
+
+        def deco(fn):
+            full = f"{self._prefix}.{name or fn.__name__}"
+            self._claim(full, "prompt")
+            return self._server.prompt(name=full, **kwargs)(fn)
+
+        return deco
+
+    def _claim(self, full: str, kind: str) -> None:
+        if full in self._registry:
+            raise ValueError(
+                f"Duplicate {kind} name '{full}' across plugins. "
+                f"{kind.capitalize()} names are namespaced by plugin and must be unique."
+            )
+        self._registry.add(full)
+
+    def __getattr__(self, item):
+        # Delegate everything else (e.g. resource registration) unchanged.
+        return getattr(self._server, item)
+
+
 class PluginManager:
     """Manages plugin discovery, loading, and hook coordination."""
 
@@ -93,10 +143,19 @@ class PluginManager:
         """
         Call vestibule_register_tools hook on all loaded plugins.
 
+        Each plugin's tools are registered under a ``<plugin_name>.<tool>``
+        namespace so names are globally unique across plugins.
+
         Args:
             mcp_server: The FastMCP server instance
         """
-        self.pm.hook.vestibule_register_tools(mcp_server=mcp_server)
+        registry: set[str] = set()
+        for plugin_name in self._plugins:
+            plugin = self._plugins[plugin_name]
+            if hasattr(plugin, "vestibule_register_tools"):
+                plugin.vestibule_register_tools(
+                    _NamespacedServer(mcp_server, plugin_name, registry)
+                )
 
     def register_resources(self, mcp_server: FastMCP) -> None:
         """
@@ -105,16 +164,30 @@ class PluginManager:
         Args:
             mcp_server: The FastMCP server instance
         """
-        self.pm.hook.vestibule_register_resources(mcp_server=mcp_server)
+        for plugin_name in self._plugins:
+            plugin = self._plugins[plugin_name]
+            if hasattr(plugin, "vestibule_register_resources"):
+                plugin.vestibule_register_resources(
+                    _NamespacedServer(mcp_server, plugin_name, set())
+                )
 
     def register_prompts(self, mcp_server: FastMCP) -> None:
         """
         Call vestibule_register_prompts hook on all loaded plugins.
 
+        Each plugin's prompts are registered under a ``<plugin_name>.<prompt>``
+        namespace so names are globally unique across plugins.
+
         Args:
             mcp_server: The FastMCP server instance
         """
-        self.pm.hook.vestibule_register_prompts(mcp_server=mcp_server)
+        registry: set[str] = set()
+        for plugin_name in self._plugins:
+            plugin = self._plugins[plugin_name]
+            if hasattr(plugin, "vestibule_register_prompts"):
+                plugin.vestibule_register_prompts(
+                    _NamespacedServer(mcp_server, plugin_name, registry)
+                )
 
     def validate_secrets(self) -> list[tuple[str, str]]:
         """
@@ -170,11 +243,12 @@ class PluginManager:
         Collect per-tool approval policies from all loaded plugins.
 
         Each plugin's ``vestibule_approval_policy`` hook returns a dict
-        mapping tool name -> approval mode. Results are merged across plugins;
-        later plugins win on name collisions.
+        mapping bare tool name -> approval mode. Results are merged across
+        plugins, with each tool namespaced as ``<plugin_name>.<tool>`` so
+        policies are unambiguous across plugins.
 
         Returns:
-            dict[str, str]: Mapping of tool name -> approval mode.
+            dict[str, str]: Mapping of namespaced tool name -> approval mode.
         """
         policies: dict[str, str] = {}
         for plugin_name in self._plugins:
@@ -183,7 +257,8 @@ class PluginManager:
                 try:
                     result = plugin.vestibule_approval_policy()
                     if result:
-                        policies.update(result)
+                        for tool, mode in result.items():
+                            policies[f"{plugin_name}.{tool}"] = mode
                 except Exception:
                     pass  # Plugin doesn't declare an approval policy
         return policies

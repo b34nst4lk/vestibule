@@ -92,7 +92,7 @@ Sensitive tools can be gated behind a human-in-the-loop approval check. The **ap
 enabled = true
 
 [tool.vestibule.approval.overrides]
-send_email = "never"   # always allow (operator override)
+email.send_email = "never"   # always allow (operator override)
 ```
 
 - **`never`** — no approval required.
@@ -113,6 +113,8 @@ def vestibule_approval_policy():
 
 The effective mode for a tool is: **operator override → plugin policy → not gated**. `[tool.vestibule.approval.overrides]` lets the operator tighten or loosen any tool in either direction, even across plugins. Tools with no declared policy and no override are not gated. Setting `enabled = false` disables all approval gating.
 
+**Tool names are namespaced by plugin** (`<plugin_name>.<tool>`), so the same tool name in two plugins never collides. Plugins register tools with bare names; the server exposes them as `email.send_email`, `email.list_whitelist`, etc. Approval policies and operator overrides use the full namespaced name.
+
 When a gated tool is called and approval is required, the server returns a structured `approval_required` response instead of executing the tool. The client grants approval by calling the built-in **`approve_tool`** tool, then retries the call. Approval state is held in memory only (runtime, not persistent).
 
 ## Available Plugins
@@ -121,10 +123,10 @@ When a gated tool is called and approval is required, the server returns a struc
 
 Email whitelisting plugin that allows sending emails only to pre-approved recipients.
 
-**Tools:**
-- `send_email(recipient_name, subject, body, cc_recipient_name)` - Send an email
-- `list_whitelist()` - List all whitelisted recipients
-- `add_to_whitelist(name, email)` - Add a recipient to the runtime whitelist
+**Tools** (namespaced as `email.<tool>`):
+- `email.send_email(recipient_name, subject, body, cc_recipient_name)` - Send an email
+- `email.list_whitelist()` - List all whitelisted recipients
+- `email.add_to_whitelist(name, email)` - Add a recipient to the runtime whitelist
 
 **Note:** This plugin is included as a workspace package for testing. A standalone PyPI package will be available in a future release.
 

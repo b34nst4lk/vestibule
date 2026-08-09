@@ -25,12 +25,14 @@ log-level = "info"
 #   always     - every call to a gated tool needs approval
 #
 # Effective mode for a tool: operator override -> plugin policy -> not gated.
+# Tool names are namespaced by plugin (<plugin_name>.<tool>), so overrides
+# target a specific plugin's tool unambiguously.
 
 [tool.vestibule.approval]
 enabled = true
 
 [tool.vestibule.approval.overrides]
-send_email = "never"
+email.send_email = "never"
 other_plugin_tool = "always"
 
 # -----------------------------------------------------------------------------
