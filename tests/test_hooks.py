@@ -103,6 +103,10 @@ class MockPlugin:
     def vestibule_validate_secrets(self):
         return "mock", True, ""
 
+    @hookimpl
+    def vestibule_approval_policy(self):
+        return {"mock_tool": "first_only"}
+
 
 class MockPluginWithMissingSecrets:
     """Mock plugin that fails secret validation."""
@@ -218,3 +222,21 @@ class TestPluginManager:
         pm = PluginManager()
         meta = pm.get_metadata("non-existent")
         assert meta is None
+
+    def test_collect_approval_policies(self):
+        """Test collecting approval policies from loaded plugins."""
+        pm = PluginManager()
+        pm.pm.register(MockPlugin(), "mock")
+        pm._plugins["mock"] = MockPlugin()
+
+        policies = pm.collect_approval_policies()
+        assert policies == {"mock_tool": "first_only"}
+
+    def test_collect_approval_policies_empty(self):
+        """Test collecting approval policies with no plugins declaring one."""
+        pm = PluginManager()
+        pm.pm.register(MockPluginWithMissingSecrets(), "broken")
+        pm._plugins["broken"] = MockPluginWithMissingSecrets()
+
+        policies = pm.collect_approval_policies()
+        assert policies == {}

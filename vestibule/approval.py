@@ -1,12 +1,22 @@
 """
 Human-in-the-loop approval workflow for Vestibule MCP server.
 
-Gates tool calls behind an approval check. Approval mode is configured
-globally with an optional per-tool list:
+Gates tool calls behind an approval check. Approval policy is declared by
+plugins (per-tool), enabled globally, and overridable per-tool by the
+operator:
 
     [tool.vestibule.approval]
-    mode = "first_only"   # always | first_only | never
-    tools = ["send_email"]
+    enabled = true
+
+    [tool.vestibule.approval.overrides]
+    send_email = "never"   # operator override
+
+Plugins declare their default per-tool policy via the
+``vestibule_approval_policy`` hook. The effective mode for a tool is:
+
+1. operator override (if present)
+2. plugin-declared policy (if present)
+3. not gated (allowed)
 
 Modes:
 - ``never``:      no approval required.
@@ -20,9 +30,6 @@ Approval state is held in memory only (runtime, not persistent).
 
 import threading
 from enum import StrEnum
-
-# Default mode applied when no approval configuration is provided.
-DEFAULT_APPROVAL_MODE = "first_only"
 
 
 class ApprovalMode(StrEnum):
@@ -49,13 +56,16 @@ class ApprovalTracker:
 
     def __init__(
         self,
-        mode: ApprovalMode | str = DEFAULT_APPROVAL_MODE,
-        tools: list[str] | None = None,
+        enabled: bool = True,
+        policies: dict[str, ApprovalMode | str] | None = None,
         overrides: dict[str, ApprovalMode | str] | None = None,
     ):
-        self._default_mode = ApprovalMode(mode)
-        self._gated: set[str] = set(tools or [])
-        # Per-tool mode overrides: tool name -> its own approval mode.
+        self._enabled = enabled
+        # Plugin-declared per-tool policies (the defaults).
+        self._policies: dict[str, ApprovalMode] = {
+            name: ApprovalMode(m) for name, m in (policies or {}).items()
+        }
+        # Operator per-tool overrides (win over plugin policies).
         self._overrides: dict[str, ApprovalMode] = {
             name: ApprovalMode(m) for name, m in (overrides or {}).items()
         }
@@ -67,24 +77,26 @@ class ApprovalTracker:
 
     def configure(
         self,
-        mode: ApprovalMode | str,
-        tools: list[str] | None = None,
+        enabled: bool = True,
+        policies: dict[str, ApprovalMode | str] | None = None,
         overrides: dict[str, ApprovalMode | str] | None = None,
     ) -> None:
         """(Re)configure the tracker, resetting all approval state."""
         with self._lock:
-            self._default_mode = ApprovalMode(mode)
-            self._gated = set(tools or [])
+            self._enabled = enabled
+            self._policies = {name: ApprovalMode(m) for name, m in (policies or {}).items()}
             self._overrides = {name: ApprovalMode(m) for name, m in (overrides or {}).items()}
             self._approved.clear()
             self._pending.clear()
 
     def _mode_for(self, tool_name: str) -> ApprovalMode | None:
         """Return the effective approval mode for a tool, or None if not gated."""
+        if not self._enabled:
+            return None
         if tool_name in self._overrides:
             return self._overrides[tool_name]
-        if tool_name in self._gated:
-            return self._default_mode
+        if tool_name in self._policies:
+            return self._policies[tool_name]
         return None
 
     def is_gated(self, tool_name: str) -> bool:
@@ -137,18 +149,19 @@ class ApprovalTracker:
 # Module-level default tracker
 # -----------------------------------------------------------------------------
 # The transports share a single tracker instance, configured at startup from
-# the loaded Config. This keeps approval state consistent across stdio and
-# HTTP/SSE without threading a Config object through every handler.
+# the loaded Config and plugin-declared policies. This keeps approval state
+# consistent across stdio and HTTP/SSE without threading a Config object
+# through every handler.
 _tracker = ApprovalTracker()
 
 
 def configure_approval(
-    mode: ApprovalMode | str,
-    tools: list[str] | None = None,
+    enabled: bool = True,
+    policies: dict[str, ApprovalMode | str] | None = None,
     overrides: dict[str, ApprovalMode | str] | None = None,
 ) -> None:
     """Configure the shared approval tracker (called at server startup)."""
-    _tracker.configure(mode, tools, overrides)
+    _tracker.configure(enabled, policies, overrides)
 
 
 def check_approval(tool_name: str) -> None:

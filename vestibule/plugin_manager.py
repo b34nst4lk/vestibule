@@ -164,3 +164,26 @@ class PluginManager:
                     pass  # Plugin doesn't define config schema
 
         return schemas
+
+    def collect_approval_policies(self) -> dict[str, str]:
+        """
+        Collect per-tool approval policies from all loaded plugins.
+
+        Each plugin's ``vestibule_approval_policy`` hook returns a dict
+        mapping tool name -> approval mode. Results are merged across plugins;
+        later plugins win on name collisions.
+
+        Returns:
+            dict[str, str]: Mapping of tool name -> approval mode.
+        """
+        policies: dict[str, str] = {}
+        for plugin_name in self._plugins:
+            plugin = self._plugins[plugin_name]
+            if hasattr(plugin, "vestibule_approval_policy"):
+                try:
+                    result = plugin.vestibule_approval_policy()
+                    if result:
+                        policies.update(result)
+                except Exception:
+                    pass  # Plugin doesn't declare an approval policy
+        return policies

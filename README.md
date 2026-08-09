@@ -54,8 +54,7 @@ port = 8080
 transport = "stdio"
 
 [tool.vestibule.approval]
-mode = "first_only"
-tools = ["send_email"]
+enabled = true
 
 [tool.vestibule.plugins.email]
 smtp_host = "smtp.gmail.com"
@@ -86,23 +85,33 @@ vestibule serve
 
 ## Approval Workflow
 
-Sensitive tools can be gated behind a human-in-the-loop approval check. Configure it under `[tool.vestibule.approval]`:
+Sensitive tools can be gated behind a human-in-the-loop approval check. The **approval policy is declared by each plugin** (co-located with the tools it governs) via the `vestibule_approval_policy` hook. The operator just enables approval globally and can override individual tools:
 
 ```toml
 [tool.vestibule.approval]
-mode = "first_only"   # never | first_only | always
-tools = ["send_email"]
+enabled = true
 
 [tool.vestibule.approval.overrides]
-send_whitelisted_emails = "never"   # always allow
-other_plugin_tool = "always"        # always require approval
+send_email = "never"   # always allow (operator override)
 ```
 
 - **`never`** — no approval required.
-- **`first_only`** (default) — the first call to a gated tool requires approval; once approved, subsequent calls skip.
+- **`first_only`** — the first call to a gated tool requires approval; once approved, subsequent calls skip.
 - **`always`** — every call to a gated tool requires approval.
 
-`tools` lists the tools gated by the default `mode`. `[tool.vestibule.approval.overrides]` lets you set a **per-tool mode** that overrides the default — so you can always allow one tool while always requiring approval for another, even across different plugins. Tools not listed in `tools` or `overrides` are not gated.
+Plugins declare their default policy. For example, the email plugin declares:
+
+```python
+@hooks.hookimpl
+def vestibule_approval_policy():
+    return {
+        "send_email": "first_only",      # sending is a write action
+        "add_to_whitelist": "always",    # mutates the whitelist
+        "list_whitelist": "never",       # read-only
+    }
+```
+
+The effective mode for a tool is: **operator override → plugin policy → not gated**. `[tool.vestibule.approval.overrides]` lets the operator tighten or loosen any tool in either direction, even across plugins. Tools with no declared policy and no override are not gated. Setting `enabled = false` disables all approval gating.
 
 When a gated tool is called and approval is required, the server returns a structured `approval_required` response instead of executing the tool. The client grants approval by calling the built-in **`approve_tool`** tool, then retries the call. Approval state is held in memory only (runtime, not persistent).
 

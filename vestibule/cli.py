@@ -60,11 +60,6 @@ def serve(
 
     configure_rate_limits(cfg.rate_limits)
 
-    # Configure the shared approval tracker from config
-    from vestibule.approval import configure_approval
-
-    configure_approval(cfg.approval_mode, cfg.approval_tools, cfg.approval_overrides)
-
     # CLI args override config file settings
     final_host = host or cfg.host
     final_port = port or cfg.port
@@ -88,6 +83,14 @@ def serve(
         for error in validation_errors:
             typer.echo(f"  - {error}", err=True)
         sys.exit(1)
+
+    # Configure the shared approval tracker from plugin-declared policies
+    # plus operator overrides. Plugins must be loaded first so their
+    # vestibule_approval_policy hooks are available.
+    from vestibule.approval import configure_approval
+
+    policies = pm.collect_approval_policies()
+    configure_approval(cfg.approval_enabled, policies, cfg.approval_overrides)
 
     # Create the MCP server
     server = FastMCP("Vestibule")

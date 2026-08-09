@@ -5,7 +5,6 @@ Tests for the human-in-the-loop approval workflow module.
 import pytest
 
 from vestibule.approval import (
-    DEFAULT_APPROVAL_MODE,
     ApprovalMode,
     ApprovalRequired,
     ApprovalTracker,
@@ -21,40 +20,36 @@ class TestApprovalMode:
         assert ApprovalMode.FIRST_ONLY == "first_only"
         assert ApprovalMode.NEVER == "never"
 
-    def test_default_mode(self):
-        """The default mode is first_only."""
-        assert DEFAULT_APPROVAL_MODE == "first_only"
-
 
 class TestApprovalTracker:
     """Tests for the approval state tracker."""
 
-    def test_never_mode_allows_all(self):
-        """In never mode, no tool requires approval."""
-        tracker = ApprovalTracker(mode=ApprovalMode.NEVER, tools=["send_email"])
+    def test_never_policy_allows_all(self):
+        """A tool with a never policy requires no approval."""
+        tracker = ApprovalTracker(policies={"send_email": ApprovalMode.NEVER})
         tracker.check("send_email")  # should not raise
 
     def test_non_gated_tool_passes(self):
-        """Tools not in the gated set never require approval."""
-        tracker = ApprovalTracker(mode=ApprovalMode.ALWAYS, tools=["send_email"])
+        """Tools with no declared policy never require approval."""
+        tracker = ApprovalTracker(policies={"send_email": ApprovalMode.ALWAYS})
         tracker.check("list_whitelist")  # not gated, should not raise
 
     def test_first_only_requires_first_call(self):
         """In first_only mode, the first call requires approval."""
-        tracker = ApprovalTracker(mode=ApprovalMode.FIRST_ONLY, tools=["send_email"])
+        tracker = ApprovalTracker(policies={"send_email": ApprovalMode.FIRST_ONLY})
         with pytest.raises(ApprovalRequired):
             tracker.check("send_email")
 
     def test_first_only_is_sticky_after_approval(self):
         """Once approved, subsequent first_only calls skip approval."""
-        tracker = ApprovalTracker(mode=ApprovalMode.FIRST_ONLY, tools=["send_email"])
+        tracker = ApprovalTracker(policies={"send_email": ApprovalMode.FIRST_ONLY})
         tracker.approve("send_email")
         tracker.check("send_email")  # should not raise
         tracker.check("send_email")  # still approved
 
     def test_always_requires_approval_each_call(self):
         """In always mode, every call requires approval."""
-        tracker = ApprovalTracker(mode=ApprovalMode.ALWAYS, tools=["send_email"])
+        tracker = ApprovalTracker(policies={"send_email": ApprovalMode.ALWAYS})
         with pytest.raises(ApprovalRequired):
             tracker.check("send_email")
         tracker.approve("send_email")
@@ -64,49 +59,55 @@ class TestApprovalTracker:
 
     def test_approval_required_message_names_tool(self):
         """The exception message names the tool and the approve_tool tool."""
-        tracker = ApprovalTracker(mode=ApprovalMode.FIRST_ONLY, tools=["send_email"])
+        tracker = ApprovalTracker(policies={"send_email": ApprovalMode.FIRST_ONLY})
         with pytest.raises(ApprovalRequired) as excinfo:
             tracker.check("send_email")
         assert "send_email" in str(excinfo.value)
         assert "approve_tool" in str(excinfo.value)
 
     def test_configure_resets_state(self):
-        """configure() replaces mode, tools, and clears approval state."""
-        tracker = ApprovalTracker(mode=ApprovalMode.FIRST_ONLY, tools=["send_email"])
+        """configure() replaces policies and clears approval state."""
+        tracker = ApprovalTracker(policies={"send_email": ApprovalMode.FIRST_ONLY})
         tracker.approve("send_email")
-        tracker.configure(ApprovalMode.NEVER, tools=["other_tool"])
+        tracker.configure(policies={"other_tool": ApprovalMode.NEVER})
         assert tracker.is_gated("other_tool")
         assert not tracker.is_gated("send_email")
         tracker.check("other_tool")  # never mode, no approval needed
 
     def test_reset_clears_approvals(self):
-        """reset() clears approval state but keeps mode and gated tools."""
-        tracker = ApprovalTracker(mode=ApprovalMode.FIRST_ONLY, tools=["send_email"])
+        """reset() clears approval state but keeps policies."""
+        tracker = ApprovalTracker(policies={"send_email": ApprovalMode.FIRST_ONLY})
         tracker.approve("send_email")
         tracker.reset()
         with pytest.raises(ApprovalRequired):
             tracker.check("send_email")
 
     def test_is_gated(self):
-        """is_gated reflects the configured tool set."""
-        tracker = ApprovalTracker(mode=ApprovalMode.FIRST_ONLY, tools=["send_email"])
+        """is_gated reflects the declared policies."""
+        tracker = ApprovalTracker(policies={"send_email": ApprovalMode.FIRST_ONLY})
         assert tracker.is_gated("send_email")
         assert not tracker.is_gated("list_whitelist")
 
-    def test_override_never_allows_tool(self):
-        """A tool overridden to never is always allowed, even if gated by default."""
+    def test_disabled_tracker_never_gates(self):
+        """When enabled=False, no tool requires approval."""
         tracker = ApprovalTracker(
-            mode=ApprovalMode.FIRST_ONLY,
-            tools=["send_email"],
+            enabled=False,
+            policies={"send_email": ApprovalMode.ALWAYS},
+        )
+        tracker.check("send_email")  # should not raise
+
+    def test_override_never_allows_tool(self):
+        """An operator override to never wins over a plugin policy."""
+        tracker = ApprovalTracker(
+            policies={"send_email": ApprovalMode.ALWAYS},
             overrides={"send_email": ApprovalMode.NEVER},
         )
         tracker.check("send_email")  # should not raise
 
     def test_override_always_requires_each_call(self):
-        """A tool overridden to always requires approval on every call."""
+        """An operator override to always wins over a looser plugin policy."""
         tracker = ApprovalTracker(
-            mode=ApprovalMode.FIRST_ONLY,
-            tools=["send_email"],
+            policies={"send_email": ApprovalMode.NEVER},
             overrides={"send_email": ApprovalMode.ALWAYS},
         )
         with pytest.raises(ApprovalRequired):
@@ -116,11 +117,10 @@ class TestApprovalTracker:
         with pytest.raises(ApprovalRequired):
             tracker.check("send_email")
 
-    def test_override_applies_to_tool_not_in_list(self):
-        """An override gates a tool even if it is not in the tools list."""
+    def test_override_applies_to_tool_without_policy(self):
+        """An override gates a tool even if the plugin declared no policy."""
         tracker = ApprovalTracker(
-            mode=ApprovalMode.FIRST_ONLY,
-            tools=["send_email"],
+            policies={"send_email": ApprovalMode.FIRST_ONLY},
             overrides={"other_tool": ApprovalMode.ALWAYS},
         )
         with pytest.raises(ApprovalRequired):
@@ -129,8 +129,7 @@ class TestApprovalTracker:
     def test_mixed_policies(self):
         """Different tools can have different policies simultaneously."""
         tracker = ApprovalTracker(
-            mode=ApprovalMode.FIRST_ONLY,
-            tools=["send_email"],
+            policies={"send_email": ApprovalMode.FIRST_ONLY},
             overrides={
                 "send_whitelisted_emails": ApprovalMode.NEVER,
                 "other_plugin_tool": ApprovalMode.ALWAYS,
@@ -141,7 +140,7 @@ class TestApprovalTracker:
         # always requires approval
         with pytest.raises(ApprovalRequired):
             tracker.check("other_plugin_tool")
-        # default first_only for the tools list
+        # plugin policy first_only
         with pytest.raises(ApprovalRequired):
             tracker.check("send_email")
         # not gated at all
@@ -171,7 +170,7 @@ class TestApprovalGate:
         from vestibule.approval import configure_approval
         from vestibule.transports.common import handle_tools_call
 
-        configure_approval("first_only", ["send_email"])
+        configure_approval(policies={"send_email": "first_only"})
         server, calls = self._make_server()
 
         result = await handle_tools_call(server, "send_email", {"to": "a@b.c"})
@@ -187,7 +186,7 @@ class TestApprovalGate:
         from vestibule.approval import configure_approval, grant_approval
         from vestibule.transports.common import handle_tools_call
 
-        configure_approval("first_only", ["send_email"])
+        configure_approval(policies={"send_email": "first_only"})
         grant_approval("send_email")
         server, calls = self._make_server()
 
@@ -201,7 +200,7 @@ class TestApprovalGate:
         from vestibule.approval import configure_approval
         from vestibule.transports.common import handle_tools_call
 
-        configure_approval("first_only", ["send_email"])
+        configure_approval(policies={"send_email": "first_only"})
         server, calls = self._make_server()
 
         result = await handle_tools_call(server, "list_whitelist", {})

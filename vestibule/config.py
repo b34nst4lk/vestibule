@@ -46,8 +46,7 @@ class Config:
         self.log_level: LogLevel = LogLevel.INFO
         self.plugins: dict[str, dict[str, Any]] = {}
         self.rate_limits: dict[str, int] = {}
-        self.approval_mode: ApprovalMode = ApprovalMode.FIRST_ONLY
-        self.approval_tools: list[str] = []
+        self.approval_enabled: bool = True
         self.approval_overrides: dict[str, ApprovalMode] = {}
         self._plugin_schemas: dict[str, type] = {}
 
@@ -144,10 +143,8 @@ class Config:
             vestibule_config = data["tool"]["vestibule"]
             if "approval" in vestibule_config:
                 approval_config = vestibule_config["approval"]
-                if "mode" in approval_config:
-                    result["approval_mode"] = approval_config["mode"]
-                if "tools" in approval_config:
-                    result["approval_tools"] = approval_config["tools"]
+                if "enabled" in approval_config:
+                    result["approval_enabled"] = approval_config["enabled"]
                 if "overrides" in approval_config:
                     result["approval_overrides"] = approval_config["overrides"]
 
@@ -173,11 +170,8 @@ class Config:
                 self.plugins[plugin_name].update(plugin_config)
         if "rate_limits" in other:
             self.rate_limits.update(other["rate_limits"])
-        if "approval_mode" in other:
-            val = other["approval_mode"]
-            self.approval_mode = val if isinstance(val, ApprovalMode) else ApprovalMode(val)
-        if "approval_tools" in other:
-            self.approval_tools = other["approval_tools"]
+        if "approval_enabled" in other:
+            self.approval_enabled = other["approval_enabled"]
         if "approval_overrides" in other:
             self.approval_overrides = {
                 name: (val if isinstance(val, ApprovalMode) else ApprovalMode(val))

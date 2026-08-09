@@ -14,19 +14,23 @@ log-level = "info"
 # -----------------------------------------------------------------------------
 # Approval Workflow (human-in-the-loop)
 # -----------------------------------------------------------------------------
-# mode: "never" | "first_only" | "always"
+# Approval policy is declared by each plugin via the vestibule_approval_policy
+# hook (co-located with the tools it governs). The operator only enables
+# approval globally and can override individual tools.
+#
+# enabled: global switch. false disables all approval gating.
+# overrides: per-tool operator overrides (tool name -> its own mode).
 #   never      - no approval required
 #   first_only - first call to a gated tool needs approval, then sticky
 #   always     - every call to a gated tool needs approval
-# tools: list of tool names gated by the default mode
-# overrides: per-tool mode overrides (tool name -> its own mode)
+#
+# Effective mode for a tool: operator override -> plugin policy -> not gated.
 
 [tool.vestibule.approval]
-mode = "first_only"
-tools = ["send_email"]
+enabled = true
 
 [tool.vestibule.approval.overrides]
-send_whitelisted_emails = "never"
+send_email = "never"
 other_plugin_tool = "always"
 
 # -----------------------------------------------------------------------------

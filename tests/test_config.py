@@ -300,10 +300,9 @@ class TestConfigApproval:
     """Test loading approval config from TOML."""
 
     def test_default_approval(self):
-        """Config defaults to first_only mode with no gated tools."""
+        """Config defaults to enabled with no overrides."""
         config = Config()
-        assert config.approval_mode == "first_only"
-        assert config.approval_tools == []
+        assert config.approval_enabled is True
         assert config.approval_overrides == {}
 
     def test_load_approval(self):
@@ -320,32 +319,45 @@ class TestConfigApproval:
 host = "127.0.0.1"
 
 [tool.vestibule.approval]
-mode = "always"
-tools = ["send_email", "add_to_whitelist"]
+enabled = true
 
 [tool.vestibule.approval.overrides]
-send_whitelisted_emails = "never"
+send_email = "never"
 other_plugin_tool = "always"
 """)
 
             config = Config.load()
-            assert config.approval_mode == "always"
-            assert config.approval_tools == ["send_email", "add_to_whitelist"]
+            assert config.approval_enabled is True
             assert config.approval_overrides == {
-                "send_whitelisted_emails": "never",
+                "send_email": "never",
                 "other_plugin_tool": "always",
             }
+
+    def test_load_approval_disabled(self):
+        """Test loading approval with enabled = false."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            os.chdir(tmpdir)
+            os.environ["HOME"] = "/nonexistent"
+
+            project_config_dir = Path(tmpdir) / ".vestibule"
+            project_config_dir.mkdir()
+            project_config = project_config_dir / "config.toml"
+            project_config.write_text("""
+[tool.vestibule.approval]
+enabled = false
+""")
+
+            config = Config.load()
+            assert config.approval_enabled is False
 
     def test_merge_approval(self):
         """Test approval config is merged correctly."""
         config = Config()
         config._merge(
             {
-                "approval_mode": "never",
-                "approval_tools": ["send_email"],
+                "approval_enabled": False,
                 "approval_overrides": {"other_tool": "always"},
             }
         )
-        assert config.approval_mode == "never"
-        assert config.approval_tools == ["send_email"]
+        assert config.approval_enabled is False
         assert config.approval_overrides == {"other_tool": "always"}
