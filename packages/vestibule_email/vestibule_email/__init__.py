@@ -105,6 +105,22 @@ def vestibule_validate_secrets() -> tuple[str, bool, str]:
     return "email", True, ""
 
 
+@hooks.hookimpl
+def vestibule_approval_policy() -> dict[str, str]:
+    """Declare the per-tool approval policy for the email plugin.
+
+    - ``send_email``: first_only — sending is a write action; ask once, then
+      allow for the session.
+    - ``add_to_whitelist``: always — mutates the whitelist; ask every time.
+    - ``list_whitelist``: never — read-only; no approval needed.
+    """
+    return {
+        "send_email": "first_only",
+        "add_to_whitelist": "always",
+        "list_whitelist": "never",
+    }
+
+
 # -----------------------------------------------------------------------------
 # Tool Registration Hook
 # -----------------------------------------------------------------------------

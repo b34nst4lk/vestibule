@@ -141,6 +141,31 @@ def vestibule_validate_secrets() -> tuple[str, bool, str]:
     pass
 
 
+@hookspec
+def vestibule_approval_policy() -> dict[str, str]:
+    """
+    Hook spec for plugins to declare their per-tool approval policy.
+
+    Implementations return a dict mapping tool name to an approval mode
+    (``"never"`` | ``"first_only"`` | ``"always"``). This is the plugin's
+    default policy, co-located with the tools it governs. Operators can
+    override it per-tool via ``[tool.vestibule.approval.overrides]``.
+
+    Returns:
+        dict[str, str]: Mapping of tool name to approval mode.
+
+    Example:
+        @hookimpl
+        def vestibule_approval_policy():
+            return {
+                "send_email": "first_only",
+                "add_to_whitelist": "always",
+                "list_whitelist": "never",
+            }
+    """
+    pass
+
+
 @hookspec(firstresult=True)
 def vestibule_config_schema() -> type:
     """

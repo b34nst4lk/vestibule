@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from vestibule.approval import ApprovalMode
 from vestibule.config import Config
 
 
@@ -294,3 +295,102 @@ list_whitelist = 120
         """Config without rate_limits defaults to empty dict."""
         config = Config()
         assert config.rate_limits == {}
+
+
+class TestConfigApproval:
+    """Test loading approval config from TOML."""
+
+    def test_default_approval(self):
+        """Config defaults to enabled with no overrides."""
+        config = Config()
+        assert config.approval_enabled is True
+        assert config.approval_overrides == {}
+
+    def test_load_approval(self):
+        """Test loading [tool.vestibule.approval] from config."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            os.chdir(tmpdir)
+            os.environ["HOME"] = "/nonexistent"
+
+            project_config_dir = Path(tmpdir) / ".vestibule"
+            project_config_dir.mkdir()
+            project_config = project_config_dir / "config.toml"
+            project_config.write_text("""
+[tool.vestibule]
+host = "127.0.0.1"
+
+[tool.vestibule.approval]
+enabled = true
+
+[tool.vestibule.approval.overrides]
+send_email = "never"
+other_plugin_tool = "always"
+""")
+
+            config = Config.load()
+            assert config.approval_enabled is True
+            assert config.approval_overrides == {
+                "send_email": "never",
+                "other_plugin_tool": "always",
+            }
+
+    def test_load_approval_disabled(self):
+        """Test loading approval with enabled = false."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            os.chdir(tmpdir)
+            os.environ["HOME"] = "/nonexistent"
+
+            project_config_dir = Path(tmpdir) / ".vestibule"
+            project_config_dir.mkdir()
+            project_config = project_config_dir / "config.toml"
+            project_config.write_text("""
+[tool.vestibule.approval]
+enabled = false
+""")
+
+            config = Config.load()
+            assert config.approval_enabled is False
+
+    def test_merge_approval(self):
+        """Test approval config is merged correctly."""
+        config = Config()
+        config._merge(
+            {
+                "approval_enabled": False,
+                "approval_overrides": {"other_tool": "always"},
+            }
+        )
+        assert config.approval_enabled is False
+        assert config.approval_overrides == {"other_tool": "always"}
+
+    def test_load_approval_overrides_are_approval_mode(self):
+        """TOML-loaded override values are normalized to ApprovalMode."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            os.chdir(tmpdir)
+            os.environ["HOME"] = "/nonexistent"
+
+            project_config_dir = Path(tmpdir) / ".vestibule"
+            project_config_dir.mkdir()
+            project_config = project_config_dir / "config.toml"
+            project_config.write_text("""
+[tool.vestibule.approval]
+enabled = true
+
+[tool.vestibule.approval.overrides]
+send_email = "never"
+""")
+
+            config = Config.load()
+            assert config.approval_overrides["send_email"] is ApprovalMode.NEVER
+
+    def test_merge_approval_overrides_are_approval_mode(self):
+        """Merged override values are normalized to ApprovalMode."""
+        config = Config()
+        config._merge({"approval_overrides": {"send_email": "first_only"}})
+        assert config.approval_overrides["send_email"] is ApprovalMode.FIRST_ONLY
+
+    def test_invalid_approval_override_raises(self):
+        """An unknown override mode raises a clear error at load time."""
+        config = Config()
+        with pytest.raises(ValueError, match="Invalid approval mode"):
+            config._merge({"approval_overrides": {"send_email": "sometimes"}})

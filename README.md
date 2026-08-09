@@ -16,6 +16,7 @@ Think of it as a **gateway between AI and action** — the vestibule controls wh
 - **Secrets Management**: Environment-based secrets with plugin-declared prefixes
 - **TOML Configuration**: Multi-level config merging (CLI > project > user > defaults)
 - **Pydantic Validation**: Plugin configs validated against declared schemas at startup
+- **Human-in-the-Loop Approval**: Gate sensitive tools behind an approval workflow (`never` / `first_only` / `always`)
 - **Fail-Fast**: Server exits with clear errors if config or secrets validation fails
 - **MCP Protocol**: Full support for tools, resources, and prompts
 - **Dual Transport**: Stdio and HTTP/SSE transports
@@ -52,6 +53,9 @@ host = "localhost"
 port = 8080
 transport = "stdio"
 
+[tool.vestibule.approval]
+enabled = true
+
 [tool.vestibule.plugins.email]
 smtp_host = "smtp.gmail.com"
 sender_email = "you@gmail.com"
@@ -79,16 +83,50 @@ uv run python main.py
 vestibule serve
 ```
 
+## Approval Workflow
+
+Sensitive tools can be gated behind a human-in-the-loop approval check. The **approval policy is declared by each plugin** (co-located with the tools it governs) via the `vestibule_approval_policy` hook. The operator just enables approval globally and can override individual tools:
+
+```toml
+[tool.vestibule.approval]
+enabled = true
+
+[tool.vestibule.approval.overrides]
+email.send_email = "never"   # always allow (operator override)
+```
+
+- **`never`** — no approval required.
+- **`first_only`** — the first call to a gated tool requires approval; once approved, subsequent calls skip.
+- **`always`** — every call to a gated tool requires approval.
+
+Plugins declare their default policy. For example, the email plugin declares:
+
+```python
+@hooks.hookimpl
+def vestibule_approval_policy():
+    return {
+        "send_email": "first_only",      # sending is a write action
+        "add_to_whitelist": "always",    # mutates the whitelist
+        "list_whitelist": "never",       # read-only
+    }
+```
+
+The effective mode for a tool is: **operator override → plugin policy → not gated**. `[tool.vestibule.approval.overrides]` lets the operator tighten or loosen any tool in either direction, even across plugins. Tools with no declared policy and no override are not gated. Setting `enabled = false` disables all approval gating.
+
+**Tool names are namespaced by plugin** (`<plugin_name>.<tool>`), so the same tool name in two plugins never collides. Plugins register tools with bare names; the server exposes them as `email.send_email`, `email.list_whitelist`, etc. Approval policies and operator overrides use the full namespaced name.
+
+When a gated tool is called and approval is required, the server returns a structured `approval_required` response instead of executing the tool. The client grants approval by calling the built-in **`approve_tool`** tool, then retries the call. Approval state is held in memory only (runtime, not persistent).
+
 ## Available Plugins
 
 ### vestibule-email (workspace only)
 
 Email whitelisting plugin that allows sending emails only to pre-approved recipients.
 
-**Tools:**
-- `send_email(recipient_name, subject, body, cc_recipient_name)` - Send an email
-- `list_whitelist()` - List all whitelisted recipients
-- `add_to_whitelist(name, email)` - Add a recipient to the runtime whitelist
+**Tools** (namespaced as `email.<tool>`):
+- `email.send_email(recipient_name, subject, body, cc_recipient_name)` - Send an email
+- `email.list_whitelist()` - List all whitelisted recipients
+- `email.add_to_whitelist(name, email)` - Add a recipient to the runtime whitelist
 
 **Note:** This plugin is included as a workspace package for testing. A standalone PyPI package will be available in a future release.
 

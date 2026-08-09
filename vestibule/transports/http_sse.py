@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.exceptions import ToolError
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
@@ -324,8 +325,6 @@ class HTTPSSETransport:
 
     async def _handle_tools_call(self, params: dict[str, Any]) -> dict[str, Any]:
         """Handle the tools/call request."""
-        from mcp.server.fastmcp.exceptions import ToolError
-
         tool_name = params.get("name")
         if not tool_name:
             raise JSONRPCError(INVALID_PARAMS, "Missing tool name")

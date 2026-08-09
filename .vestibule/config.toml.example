@@ -12,6 +12,38 @@ transport = "stdio"  # or "http-sse"
 log-level = "info"
 
 # -----------------------------------------------------------------------------
+# Approval Workflow (human-in-the-loop)
+# -----------------------------------------------------------------------------
+# Approval policy is declared by each plugin via the vestibule_approval_policy
+# hook (co-located with the tools it governs). The operator only enables
+# approval globally and can override individual tools.
+#
+# enabled: global switch. false disables all approval gating.
+# overrides: per-tool operator overrides (tool name -> its own mode).
+#   never      - no approval required
+#   first_only - first call to a gated tool needs approval, then sticky
+#   always     - every call to a gated tool needs approval
+#
+# Effective mode for a tool: operator override -> plugin policy -> not gated.
+# Tool names are namespaced by plugin (<plugin_name>.<tool>), so overrides
+# target a specific plugin's tool unambiguously.
+
+[tool.vestibule.approval]
+enabled = true
+
+[tool.vestibule.approval.overrides]
+email.send_email = "never"
+other_plugin_tool = "always"
+
+# -----------------------------------------------------------------------------
+# Rate Limiting (requests per minute per tool)
+# -----------------------------------------------------------------------------
+
+[tool.vestibule.rate_limits]
+send_email = 10
+list_whitelist = 120
+
+# -----------------------------------------------------------------------------
 # Email Plugin Configuration
 # -----------------------------------------------------------------------------
 
