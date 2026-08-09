@@ -9,6 +9,11 @@ import json
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.exceptions import ToolError
+
+from vestibule.approval import ApprovalRequired, check_approval
+from vestibule.audit import log_tool_call
+from vestibule.rate_limit import RateLimitExceeded, check_rate_limit
 
 # JSON-RPC error codes (shared by both transports)
 PARSE_ERROR = -32700
@@ -77,12 +82,6 @@ async def handle_tools_call(
     Returns:
         Tool execution result with content and isError fields
     """
-    from mcp.server.fastmcp.exceptions import ToolError
-
-    from vestibule.approval import ApprovalRequired, check_approval
-    from vestibule.audit import log_tool_call
-    from vestibule.rate_limit import RateLimitExceeded, check_rate_limit
-
     # Enforce per-tool rate limiting before executing the call
     try:
         check_rate_limit(tool_name)

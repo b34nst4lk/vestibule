@@ -7,14 +7,17 @@ Commands:
     plugins     - Manage plugins (list, info)
 """
 
+import importlib.metadata
 import sys
 from typing import Annotated
 
 import typer
 from mcp.server.fastmcp import FastMCP
 
+from .approval import APPROVE_TOOL_NAME, configure_approval, grant_approval
 from .config import Config, Transport
 from .plugin_manager import PluginManager
+from .rate_limit import configure_rate_limits
 
 app = typer.Typer(help="Vestibule - Plugin-based MCP server")
 
@@ -22,8 +25,6 @@ app = typer.Typer(help="Vestibule - Plugin-based MCP server")
 def get_version() -> str:
     """Get the Vestibule version."""
     try:
-        import importlib.metadata
-
         return importlib.metadata.version("vestibule")
     except importlib.metadata.PackageNotFoundError:
         return "0.1.0 (dev)"
@@ -56,8 +57,6 @@ def serve(
     cfg = Config.load(config)
 
     # Configure the shared rate limiter from config
-    from vestibule.rate_limit import configure_rate_limits
-
     configure_rate_limits(cfg.rate_limits)
 
     # CLI args override config file settings
@@ -87,8 +86,6 @@ def serve(
     # Configure the shared approval tracker from plugin-declared policies
     # plus operator overrides. Plugins must be loaded first so their
     # vestibule_approval_policy hooks are available.
-    from vestibule.approval import configure_approval
-
     policies = pm.collect_approval_policies()
     configure_approval(cfg.approval_enabled, policies, cfg.approval_overrides)
 
@@ -96,8 +93,6 @@ def serve(
     server = FastMCP("Vestibule")
 
     # Register the built-in approval tool so clients can grant approval
-    from vestibule.approval import APPROVE_TOOL_NAME, grant_approval
-
     @server.tool(name=APPROVE_TOOL_NAME)
     def approve_tool(tool_name: str) -> str:
         """Approve a tool for execution (grants human-in-the-loop approval)."""

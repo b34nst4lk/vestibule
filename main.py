@@ -16,6 +16,8 @@ import sys
 from mcp.server.fastmcp import FastMCP
 
 from vestibule import PluginManager
+from vestibule.approval import APPROVE_TOOL_NAME, configure_approval, grant_approval
+from vestibule.config import Config
 from vestibule.transports.http_sse import HTTPSSETransport
 from vestibule.transports.stdio import StdioTransport
 
@@ -104,13 +106,6 @@ async def main() -> int:
     # Configure the shared approval tracker from plugin-declared policies
     # plus operator overrides. Plugins must be loaded first so their
     # vestibule_approval_policy hooks are available.
-    from vestibule.approval import (
-        APPROVE_TOOL_NAME,
-        configure_approval,
-        grant_approval,
-    )
-    from vestibule.config import Config
-
     cfg = Config.load()
     policies = plugin_manager.collect_approval_policies()
     configure_approval(cfg.approval_enabled, policies, cfg.approval_overrides)
