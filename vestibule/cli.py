@@ -96,11 +96,11 @@ def serve(
     server = FastMCP("Vestibule")
 
     # Register the built-in approval tool so clients can grant approval
-    @server.tool()
+    from vestibule.approval import APPROVE_TOOL_NAME, grant_approval
+
+    @server.tool(name=APPROVE_TOOL_NAME)
     def approve_tool(tool_name: str) -> str:
         """Approve a tool for execution (grants human-in-the-loop approval)."""
-        from vestibule.approval import grant_approval
-
         grant_approval(tool_name)
         return f"Approved tool '{tool_name}'."
 

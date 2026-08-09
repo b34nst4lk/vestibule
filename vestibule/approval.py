@@ -40,6 +40,11 @@ class ApprovalMode(StrEnum):
     NEVER = "never"
 
 
+# Name of the built-in MCP tool clients call to grant approval. Kept in one
+# place so the exception message and the CLI registration stay in sync.
+APPROVE_TOOL_NAME = "approve_tool"
+
+
 class ApprovalRequired(Exception):
     """Raised when a tool call requires human approval."""
 
@@ -47,7 +52,7 @@ class ApprovalRequired(Exception):
         self.tool_name = tool_name
         super().__init__(
             f"Approval required for tool '{tool_name}'. "
-            f"Call the 'approve_tool' tool to approve it, then retry."
+            f"Call the '{APPROVE_TOOL_NAME}' tool to approve it, then retry."
         )
 
 
@@ -90,7 +95,10 @@ class ApprovalTracker:
             self._pending.clear()
 
     def _mode_for(self, tool_name: str) -> ApprovalMode | None:
-        """Return the effective approval mode for a tool, or None if not gated."""
+        """Return the effective approval mode for a tool, or None if not gated.
+
+        Caller must hold ``_lock``.
+        """
         if not self._enabled:
             return None
         if tool_name in self._overrides:
@@ -101,7 +109,8 @@ class ApprovalTracker:
 
     def is_gated(self, tool_name: str) -> bool:
         """Return True if the tool has any approval policy applied."""
-        return self._mode_for(tool_name) is not None
+        with self._lock:
+            return self._mode_for(tool_name) is not None
 
     def check(self, tool_name: str) -> None:
         """

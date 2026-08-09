@@ -24,10 +24,28 @@ class TestApprovalMode:
 class TestApprovalTracker:
     """Tests for the approval state tracker."""
 
+    def test_default_construction_gates_nothing(self):
+        """Constructing without args enables approval but declares no policies."""
+        tracker = ApprovalTracker()
+        assert tracker.is_gated("send_email") is False
+        tracker.check("send_email")  # should not raise
+
     def test_never_policy_allows_all(self):
         """A tool with a never policy requires no approval."""
         tracker = ApprovalTracker(policies={"send_email": ApprovalMode.NEVER})
         tracker.check("send_email")  # should not raise
+
+    def test_never_policy_approvals_are_inert(self):
+        """Approving a never-policy tool never blocks or gates it."""
+        tracker = ApprovalTracker(policies={"send_email": ApprovalMode.NEVER})
+        tracker.approve("send_email")
+        tracker.check("send_email")  # still allowed
+
+    def test_approve_non_gated_tool_is_recorded_but_inert(self):
+        """Approving a non-gated tool is recorded but never gates execution."""
+        tracker = ApprovalTracker(policies={"send_email": ApprovalMode.FIRST_ONLY})
+        tracker.approve("other_tool")
+        tracker.check("other_tool")  # still allowed
 
     def test_non_gated_tool_passes(self):
         """Tools with no declared policy never require approval."""
