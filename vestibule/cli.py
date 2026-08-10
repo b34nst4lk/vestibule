@@ -16,6 +16,7 @@ from mcp.server.fastmcp import FastMCP
 
 from .approval import APPROVE_TOOL_NAME, configure_approval, grant_approval
 from .config import Config, Transport
+from .envfile import load_env_into_environment
 from .plugin_manager import PluginManager
 from .rate_limit import configure_rate_limits
 
@@ -42,6 +43,9 @@ def serve(
     port: Annotated[int | None, typer.Option("--port", "-p")] = None,
     transport: Annotated[str | None, typer.Option("--transport", "-t")] = None,
     config: Annotated[str | None, typer.Option("--config", "-c")] = None,
+    env_file: Annotated[
+        str, typer.Option("--env-file", help="Path to a .env file to load (default: .env).")
+    ] = ".env",
 ) -> None:
     """
     Start the MCP server with loaded plugins.
@@ -52,7 +56,14 @@ def serve(
       2. .vestibule/config.toml (project config)
       3. ~/.vestibule/config.toml (user config)
       4. Built-in defaults
+
+    Secrets are read from the process environment. A user-managed .env file
+    (default .env) is loaded into the environment at startup, but is never
+    written by Vestibule.
     """
+    # Load user-managed .env into the environment before plugins read secrets.
+    load_env_into_environment(env_file)
+
     # Load configuration from TOML files
     cfg = Config.load(config)
 
