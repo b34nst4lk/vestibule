@@ -155,7 +155,7 @@ Whitelisted email plugin that allows sending emails only to pre-approved recipie
 
 **Hard-gate model:** the whitelist is the hard authorization boundary. The AI addresses recipients by friendly name only; Vestibule maps names to addresses via `EMAIL_WHITELIST`, and any recipient not in the whitelist is blocked even after `send_email` is approved. The whitelist is operator-curated and read-only for the AI (no runtime mutation). See `packages/vestibule_whitelisted_email/README.md` for setup.
 
-**Note:** This plugin is included as a workspace package for testing. A standalone PyPI package will be available in a future release.
+**Install:** `pip install vestibule-whitelisted-email` (published to PyPI). Also included as a workspace package for testing.
 
 ### vestibule-example
 
