@@ -39,6 +39,10 @@ These are hard-won facts about the `mcp` library (FastMCP). Read the public API
 surface and source before touching library internals — do not reach into
 `_private` attributes.
 
+- **Version:** `mcp>=1.28.1` (see `pyproject.toml`). Re-validate these notes when
+  bumping the dependency.
+- **Upstream docs:** https://github.com/modelcontextprotocol/python-sdk
+
 ### Public API surface (use these, not private attrs)
 
 - `list_tools()` — returns registered tools (use for existence checks)
@@ -83,8 +87,9 @@ not a silent break.
   in the PR — not after.
 - **`gh` keyring times out** — run `export GH_TOKEN=$(gh auth token)` before gh
   commands.
-- **`.coverage` is a tracked binary** that changes on every test run — avoid
-  committing spurious diffs from it.
+- **`.coverage` is a tracked binary** that changes on every test run. It is now
+  gitignored; if it ever gets re-added, run `git rm --cached .coverage` so the
+  ignore rule takes effect.
 
 ## Agent skills
 
