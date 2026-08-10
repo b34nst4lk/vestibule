@@ -9,6 +9,17 @@ A plugin for the Vestibule MCP server that provides email sending capabilities w
 - **SMTP support**: Works with any SMTP server (Gmail, Outlook, corporate SMTP, etc.)
 - **CC support**: Optionally CC additional whitelisted recipients
 
+## Hard-Gate Model
+
+The whitelist is the **hard authorization boundary** — the AI cannot bypass it.
+
+- The AI assistant addresses recipients by **friendly name only** (e.g. `"alice"`); it never provides a raw email address.
+- Vestibule maps the friendly name to an email address via the whitelist (`EMAIL_WHITELIST`). If the name is **not** in the whitelist, the send is **blocked** — even if `send_email` has already been approved.
+- The whitelist is **operator-curated and read-only for the AI**. There is no tool to add or remove recipients at runtime (`add_to_whitelist` was removed). The only way to change the whitelist is to edit `EMAIL_WHITELIST` and restart.
+- SMTP credentials live in the server environment and are **never exposed** in tool results or audit logs.
+
+This means the **approval gate** (`first_only` on `send_email`) and the **whitelist gate** are **independent**: approving `send_email` unlocks the tool, but the whitelist still blocks any recipient not in `EMAIL_WHITELIST`.
+
 ## Installation
 
 ```bash
@@ -107,3 +118,14 @@ list_whitelist()
 - The whitelist is loaded from `EMAIL_WHITELIST` at startup and is read-only for the AI.
 - Credentials are loaded from environment variables, not configuration files, and are never exposed in tool results.
 - TLS is enabled by default for SMTP connections.
+
+## Authoring a Stricter Variant
+
+This plugin ships a pragmatic default: `send_email` is gated `first_only` (ask once per session), and the whitelist is the hard gate. If your threat model needs more, author a stricter variant:
+
+- **Per-recipient approval** — gate `send_email` with `always` instead of `first_only`, so every send (even to a whitelisted recipient) requires human approval.
+- **Per-recipient allowlist** — maintain a separate per-recipient approval list in addition to the whitelist.
+- **No CC** — drop the `cc_recipient_name` parameter to remove the CC path entirely.
+- **Sender allowlist** — restrict which sender addresses can be used.
+
+The plugin architecture supports this: copy the plugin, adjust the `vestibule_approval_policy` hook and the tool signatures, and register it under a new namespace.
