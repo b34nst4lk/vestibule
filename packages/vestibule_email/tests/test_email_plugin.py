@@ -132,10 +132,13 @@ class TestToolRegistration:
         """Test that the expected tools are available after registration."""
         mock_server = MagicMock()
         registered_tools = []
+        registered_tool_kwargs = {}
 
         def capture_tool(name=None, **kwargs):
             def decorator(func):
-                registered_tools.append(name or func.__name__)
+                tool_name = name or func.__name__
+                registered_tools.append(tool_name)
+                registered_tool_kwargs[tool_name] = kwargs
                 return func
 
             return decorator
@@ -147,6 +150,10 @@ class TestToolRegistration:
         assert "send_email" in registered_tools
         assert "list_whitelist" in registered_tools
         assert "add_to_whitelist" in registered_tools
+        # All email tools are registered with structured_output=False so they
+        # can return CallToolResult directly (business errors as isError content).
+        for tool_name in ("send_email", "list_whitelist", "add_to_whitelist"):
+            assert registered_tool_kwargs[tool_name]["structured_output"] is False
 
 
 class TestSendEmailTool:

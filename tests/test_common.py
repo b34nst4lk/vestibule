@@ -67,6 +67,27 @@ async def test_crash_is_error_content():
 
 
 @pytest.mark.asyncio
+async def test_type_error_is_error_content():
+    """A TypeError raised during execution surfaces as isError: true content.
+
+    FastMCP wraps argument-validation errors into ToolError, so this branch is
+    only reachable via the non-FastMCP fallback path; exercise it with a mock
+    server whose call_tool raises a raw TypeError.
+    """
+
+    class _Server:
+        async def list_tools(self):
+            return [type("T", (), {"name": "greet"})()]
+
+        async def call_tool(self, name, arguments):
+            raise TypeError("missing required argument: name")
+
+    result = await handle_tools_call(_Server(), "greet", {})
+    assert result["isError"] is True
+    assert result["content"][0]["text"].startswith("Invalid arguments:")
+
+
+@pytest.mark.asyncio
 async def test_unknown_tool_raises_tool_error():
     """An unknown tool raises ToolError (mapped to method_not_found by transports)."""
     server = _make_server()
