@@ -64,28 +64,51 @@ async def handle_tools_list(mcp_server: FastMCP) -> dict[str, Any]:
     return {"tools": tools}
 
 
-def _tool_exists(mcp_server: FastMCP, tool_name: str) -> bool:
+async def _tool_exists(mcp_server: FastMCP, tool_name: str) -> bool:
     """Return True if a tool with the given name is registered.
 
-    Prefers the FastMCP tool manager; falls back to the legacy tool registry.
+    Uses the public ``list_tools()`` API so the check is robust against
+    FastMCP internal changes (rather than reaching into private attributes).
     """
-    tool_manager = getattr(mcp_server, "_tool_manager", None)
-    if tool_manager is not None and hasattr(tool_manager, "get_tool"):
-        return tool_manager.get_tool(tool_name) is not None
-    registry = getattr(mcp_server, "_tool_registry", None)
-    if registry is not None:
-        return tool_name in registry.tools
-    return False
+    try:
+        tools = await mcp_server.list_tools()
+    except Exception:
+        return False
+    return any(tool.name == tool_name for tool in tools)
+
+
+def _iter_content_nodes(obj: Any):
+    """Yield all nested content nodes (lists, tuples, dicts, or objects).
+
+    Recursively descends into lists/tuples and dict values. A dict that carries
+    a ``text`` key is treated as a leaf so its text is collected; other dicts
+    are walked for their values.
+    """
+    if isinstance(obj, (list, tuple)):
+        for item in obj:
+            yield from _iter_content_nodes(item)
+    elif isinstance(obj, dict):
+        if "text" in obj:
+            yield obj
+        else:
+            for value in obj.values():
+                yield from _iter_content_nodes(value)
+    else:
+        yield obj
 
 
 def _collect_text(items: Any) -> list[str]:
-    """Collect ``text`` from TextContent objects or dicts in a sequence."""
+    """Collect ``text`` from TextContent objects or dicts in a sequence.
+
+    Separates tree traversal (``_iter_content_nodes``) from text extraction so
+    text-bearing parts nested in non-sequence elements are still found.
+    """
     parts = []
-    for item in items:
-        if hasattr(item, "text"):
-            parts.append(item.text)
-        elif isinstance(item, dict) and "text" in item:
-            parts.append(item["text"])
+    for node in _iter_content_nodes(items):
+        if hasattr(node, "text"):
+            parts.append(node.text)
+        elif isinstance(node, dict) and "text" in node:
+            parts.append(node["text"])
     return parts
 
 
@@ -98,19 +121,13 @@ def _extract_text_content(result: Any) -> str:
     """
     # CallToolResult (or any object exposing .content)
     content = getattr(result, "content", None)
-    if content:
+    if content is not None:
         parts = _collect_text(content)
         if parts:
             return "\n".join(parts)
-    # FastMCP default output wrap returns (unstructured, structured) tuple
-    if isinstance(result, tuple):
-        for item in result:
-            if isinstance(item, (list, tuple)):
-                parts = _collect_text(item)
-                if parts:
-                    return "\n".join(parts)
-    # structured_output=False success path returns list of TextContent
-    if isinstance(result, list):
+    # FastMCP default output wrap returns (unstructured, structured) tuple,
+    # and structured_output=False success returns a list of TextContent.
+    if isinstance(result, (tuple, list)):
         parts = _collect_text(result)
         if parts:
             return "\n".join(parts)
@@ -177,7 +194,7 @@ async def handle_tools_call(
     # Protocol-level check: an unknown tool is a JSON-RPC "method not found"
     # error, not a tool execution result. Reject it here so the transport maps
     # it to METHOD_NOT_FOUND rather than treating it as a business error.
-    if not _tool_exists(mcp_server, tool_name):
+    if not await _tool_exists(mcp_server, tool_name):
         raise ToolError(f"Tool not found: {tool_name}")
 
     try:

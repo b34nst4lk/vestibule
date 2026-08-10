@@ -171,6 +171,8 @@ def test_send_email_recipient_not_found_http(http_client: httpx.Client):
     content = result["result"]["content"][0]["text"]
     # A whitelist rejection is a business error -> isError: true content.
     assert result["result"]["isError"] is True
+    # Business errors must not use the legacy "Error:" prefix.
+    assert not content.startswith("Error:")
     assert "whitelist" in content.lower()
     assert "Unknown" in content
 
@@ -254,4 +256,6 @@ def test_approval_flow_http(http_client: httpx.Client):
     # The tool executed (gate bypassed); the fake SMTP host fails to send,
     # so the send surfaces as a graceful isError: true content result.
     content = retry["result"]["content"][0]["text"]
+    # Business errors must not use the legacy "Error:" prefix.
+    assert not content.startswith("Error:")
     assert "Approval required" not in content

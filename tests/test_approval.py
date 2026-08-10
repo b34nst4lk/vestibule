@@ -190,6 +190,9 @@ class TestApprovalGate:
             def __init__(self):
                 self._tool_manager = _ToolManager(["send_email", "list_whitelist", "other_tool"])
 
+            async def list_tools(self):
+                return [type("T", (), {"name": n})() for n in self._tool_manager._names]
+
             async def call_tool(self, name, arguments):
                 calls.append((name, arguments))
                 return _Result()
