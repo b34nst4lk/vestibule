@@ -177,7 +177,19 @@ class TestApprovalGate:
             content = [type("C", (), {"text": "ok"})()]
             isError = False
 
+        class _ToolManager:
+            """Minimal stub reporting which tools are registered."""
+
+            def __init__(self, names):
+                self._names = set(names)
+
+            def get_tool(self, name):
+                return name if name in self._names else None
+
         class _Server:
+            def __init__(self):
+                self._tool_manager = _ToolManager(["send_email", "list_whitelist", "other_tool"])
+
             async def call_tool(self, name, arguments):
                 calls.append((name, arguments))
                 return _Result()

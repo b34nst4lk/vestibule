@@ -199,7 +199,8 @@ class TestStdioTransport:
         )
         print(f"send_email result: {result}")
 
-        # Check that the error message is in the content
+        # A whitelist rejection is a business error -> isError: true content.
+        assert result["result"]["isError"] is True
         content_text = result["result"]["content"][0]["text"]
         assert "Unknown" in content_text
         assert "whitelist" in content_text.lower()
@@ -243,7 +244,8 @@ class TestStdioTransport:
         )
         print(f"add_to_whitelist invalid result: {result}")
 
-        # Check that the error message is in the content
+        # Invalid email is a business error -> isError: true content.
+        assert result["result"]["isError"] is True
         content_text = result["result"]["content"][0]["text"]
         assert "Invalid" in content_text or "invalid" in content_text.lower()
         assert "email" in content_text.lower()
@@ -296,8 +298,8 @@ class TestStdioTransport:
         )
         print(f"retry result: {retry}")
         assert "error" not in retry
-        assert retry["result"]["isError"] is False
+        assert retry["result"]["isError"] is True
         # The tool executed (gate bypassed); the fake SMTP host fails to send,
-        # but the response is no longer an approval-required soft stop.
+        # so the send surfaces as a graceful isError: true content result.
         content_text = retry["result"]["content"][0]["text"]
         assert "Approval required" not in content_text

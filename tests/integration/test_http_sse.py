@@ -169,8 +169,8 @@ def test_send_email_recipient_not_found_http(http_client: httpx.Client):
     result = response.json()
     assert "result" in result
     content = result["result"]["content"][0]["text"]
-    # The email plugin returns error messages as strings (not raising exceptions),
-    # so isError is False but the content contains the error message
+    # A whitelist rejection is a business error -> isError: true content.
+    assert result["result"]["isError"] is True
     assert "whitelist" in content.lower()
     assert "Unknown" in content
 
@@ -250,8 +250,8 @@ def test_approval_flow_http(http_client: httpx.Client):
         timeout=5.0,
     ).json()
     assert "result" in retry
-    assert retry["result"]["isError"] is False
+    assert retry["result"]["isError"] is True
     # The tool executed (gate bypassed); the fake SMTP host fails to send,
-    # but the response is no longer an approval-required soft stop.
+    # so the send surfaces as a graceful isError: true content result.
     content = retry["result"]["content"][0]["text"]
     assert "Approval required" not in content
