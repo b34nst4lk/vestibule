@@ -12,6 +12,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Any
 
+from mcp.types import CallToolResult, TextContent
 from pydantic import BaseModel, Field
 
 from vestibule import hooks
@@ -130,7 +131,7 @@ def vestibule_approval_policy() -> dict[str, str]:
 def vestibule_register_tools(mcp_server: Any) -> None:
     """Register MCP tools with the server."""
 
-    @mcp_server.tool()
+    @mcp_server.tool(structured_output=False)
     def send_email(
         recipient_name: str,
         subject: str,
@@ -162,8 +163,8 @@ def vestibule_register_tools(mcp_server: Any) -> None:
         # Resolve recipient from whitelist
         recipient_email = _resolve_recipient(recipient_name, config.whitelist)
         if not recipient_email:
-            return (
-                f"Error: Recipient '{recipient_name}' is not in the whitelist. "
+            return _error_result(
+                f"Recipient '{recipient_name}' is not in the whitelist. "
                 f"Available recipients: {', '.join(config.whitelist.keys()) or 'none'}"
             )
 
@@ -172,8 +173,8 @@ def vestibule_register_tools(mcp_server: Any) -> None:
         if cc_recipient_name:
             cc_email = _resolve_recipient(cc_recipient_name, config.whitelist)
             if not cc_email:
-                return (
-                    f"Error: CC recipient '{cc_recipient_name}' is not in the whitelist. "
+                return _error_result(
+                    f"CC recipient '{cc_recipient_name}' is not in the whitelist. "
                     f"Available recipients: {', '.join(config.whitelist.keys()) or 'none'}"
                 )
 
@@ -182,8 +183,8 @@ def vestibule_register_tools(mcp_server: Any) -> None:
         smtp_user = os.getenv("EMAIL_SMTP_USER", config.sender_email)
 
         if not smtp_password:
-            return (
-                "Error: SMTP password not configured. Set EMAIL_SMTP_PASSWORD environment variable."
+            return _error_result(
+                "SMTP password not configured. Set EMAIL_SMTP_PASSWORD environment variable."
             )
 
         try:
@@ -222,15 +223,17 @@ def vestibule_register_tools(mcp_server: Any) -> None:
             return f"Email sent successfully to {recipient_name}{cc_msg} at {recipient_email}"
 
         except smtplib.SMTPAuthenticationError:
-            return "Error: SMTP authentication failed. Check your credentials (EMAIL_SMTP_USER/EMAIL_SMTP_PASSWORD)."
+            return _error_result(
+                "SMTP authentication failed. Check your credentials (EMAIL_SMTP_USER/EMAIL_SMTP_PASSWORD)."
+            )
         except smtplib.SMTPConnectError:
-            return (
-                f"Error: Could not connect to SMTP server at {config.smtp_host}:{config.smtp_port}."
+            return _error_result(
+                f"Could not connect to SMTP server at {config.smtp_host}:{config.smtp_port}."
             )
         except Exception as e:
-            return f"Error sending email: {str(e)}"
+            return _error_result(f"Error sending email: {str(e)}")
 
-    @mcp_server.tool()
+    @mcp_server.tool(structured_output=False)
     def list_whitelist() -> str:
         """
         List all whitelisted recipients.
@@ -248,7 +251,7 @@ def vestibule_register_tools(mcp_server: Any) -> None:
             lines.append(f"  - {name}: {email}")
         return "\n".join(lines)
 
-    @mcp_server.tool()
+    @mcp_server.tool(structured_output=False)
     def add_to_whitelist(name: str, email: str) -> str:
         """
         Add a recipient to the whitelist.
@@ -265,7 +268,7 @@ def vestibule_register_tools(mcp_server: Any) -> None:
         """
         # Validate email format
         if "@" not in email or "." not in email.split("@")[-1]:
-            return f"Error: Invalid email address format: {email}"
+            return _error_result(f"Invalid email address format: {email}")
 
         # Add to runtime whitelist
         config = _get_config_from_env()
@@ -277,6 +280,14 @@ def vestibule_register_tools(mcp_server: Any) -> None:
 # -----------------------------------------------------------------------------
 # Helper Functions
 # -----------------------------------------------------------------------------
+
+
+def _error_result(message: str) -> CallToolResult:
+    """Return a tool result signalling a business error (``isError: true``)."""
+    return CallToolResult(
+        content=[TextContent(type="text", text=message)],
+        isError=True,
+    )
 
 
 def _get_config_from_env() -> EmailPluginConfig:

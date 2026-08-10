@@ -133,7 +133,7 @@ class TestToolRegistration:
         mock_server = MagicMock()
         registered_tools = []
 
-        def capture_tool(name=None):
+        def capture_tool(name=None, **kwargs):
             def decorator(func):
                 registered_tools.append(name or func.__name__)
                 return func

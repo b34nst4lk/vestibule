@@ -117,6 +117,33 @@ The effective mode for a tool is: **operator override → plugin policy → not 
 
 When a gated tool is called and approval is required, the server returns a structured `approval_required` response instead of executing the tool. The client grants approval by calling the built-in **`approve_tool`** tool, then retries the call. Approval state is held in memory only (runtime, not persistent).
 
+## Error Handling Conventions
+
+Tool results and errors follow a single convention across both transports:
+
+- **Protocol/transport errors** — unknown tool, malformed request, method not found, invalid request — are returned as **JSON-RPC error objects** (e.g. `method_not_found`). These are not tool answers.
+- **Tool business errors** — a tool that runs but cannot complete (a recipient not in the whitelist, an invalid argument, a rate-limit hit, an approval requirement, an unexpected crash) — are returned as a normal tool **`content` with `isError: true`**. The message is human/LLM-readable so a client can react (e.g. recover by calling `add_to_whitelist`).
+- **Approval requirements** additionally include `structuredContent` (`approval_required: true`) for replay, and use `isError: false` (a soft-stop, not an error).
+
+This split matters for AI clients: an LLM reads tool `content`, but a `tools/call` **JSON-RPC error** is often swallowed by the client framework before it reaches the model. So business failures must never be encoded as JSON-RPC errors.
+
+**For plugin authors:** to report a business error, **return** a `CallToolResult` with `isError: true` instead of raising or returning an `"Error: …"` string:
+
+```python
+from mcp.types import CallToolResult, TextContent
+
+@mcp_server.tool(structured_output=False)
+def send_whitelisted_email(recipient: str) -> str:
+    if recipient not in WHITELIST:
+        return CallToolResult(
+            content=[TextContent(type="text", text=f"{recipient!r} is not in the whitelist")],
+            isError=True,
+        )
+    return "sent"
+```
+
+Raise an exception only for genuine crashes; the server wraps it into a graceful `isError: true` content result. Register plain-string tools with `structured_output=False` so a returned `CallToolResult` flows through FastMCP unchanged.
+
 ## Available Plugins
 
 ### vestibule-email (workspace only)

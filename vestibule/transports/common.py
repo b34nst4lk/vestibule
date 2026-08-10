@@ -64,6 +64,61 @@ async def handle_tools_list(mcp_server: FastMCP) -> dict[str, Any]:
     return {"tools": tools}
 
 
+def _tool_exists(mcp_server: FastMCP, tool_name: str) -> bool:
+    """Return True if a tool with the given name is registered.
+
+    Prefers the FastMCP tool manager; falls back to the legacy tool registry.
+    """
+    tool_manager = getattr(mcp_server, "_tool_manager", None)
+    if tool_manager is not None and hasattr(tool_manager, "get_tool"):
+        return tool_manager.get_tool(tool_name) is not None
+    registry = getattr(mcp_server, "_tool_registry", None)
+    if registry is not None:
+        return tool_name in registry.tools
+    return False
+
+
+def _collect_text(items: Any) -> list[str]:
+    """Collect ``text`` from TextContent objects or dicts in a sequence."""
+    parts = []
+    for item in items:
+        if hasattr(item, "text"):
+            parts.append(item.text)
+        elif isinstance(item, dict) and "text" in item:
+            parts.append(item["text"])
+    return parts
+
+
+def _extract_text_content(result: Any) -> str:
+    """Extract human-readable text from a tool result of various shapes.
+
+    Handles CallToolResult, FastMCP's default ``(unstructured, structured)``
+    tuple wrap, the ``list[TextContent]`` returned with ``structured_output=False``,
+    plain dicts, and fallback ``str()``.
+    """
+    # CallToolResult (or any object exposing .content)
+    content = getattr(result, "content", None)
+    if content:
+        parts = _collect_text(content)
+        if parts:
+            return "\n".join(parts)
+    # FastMCP default output wrap returns (unstructured, structured) tuple
+    if isinstance(result, tuple):
+        for item in result:
+            if isinstance(item, (list, tuple)):
+                parts = _collect_text(item)
+                if parts:
+                    return "\n".join(parts)
+    # structured_output=False success path returns list of TextContent
+    if isinstance(result, list):
+        parts = _collect_text(result)
+        if parts:
+            return "\n".join(parts)
+    if isinstance(result, dict):
+        return json.dumps(result, indent=2)
+    return str(result)
+
+
 async def handle_tools_call(
     mcp_server: FastMCP,
     tool_name: str,
@@ -119,25 +174,17 @@ async def handle_tools_call(
             },
         }
 
+    # Protocol-level check: an unknown tool is a JSON-RPC "method not found"
+    # error, not a tool execution result. Reject it here so the transport maps
+    # it to METHOD_NOT_FOUND rather than treating it as a business error.
+    if not _tool_exists(mcp_server, tool_name):
+        raise ToolError(f"Tool not found: {tool_name}")
+
     try:
         if hasattr(mcp_server, "call_tool"):
             result = await mcp_server.call_tool(tool_name, arguments)
 
-            # Extract text content from the result
-            # FastMCP returns CallToolResult with content list
-            if hasattr(result, "content") and result.content:
-                # Get the text from TextContent objects
-                text_parts = []
-                for item in result.content:
-                    if hasattr(item, "text"):
-                        text_parts.append(item.text)
-                    elif isinstance(item, dict) and "text" in item:
-                        text_parts.append(item["text"])
-                text_content = "\n".join(text_parts) if text_parts else str(result.content)
-            elif isinstance(result, dict):
-                text_content = json.dumps(result, indent=2)
-            else:
-                text_content = str(result)
+            text_content = _extract_text_content(result)
 
             response = {
                 "content": [{"type": "text", "text": text_content}],
@@ -177,11 +224,13 @@ async def handle_tools_call(
 
                     return response
 
-            # Tool not found - raise error
+            # Defensive: existence was pre-checked above, so this is unreachable.
             raise ToolError(f"Tool not found: {tool_name}")
 
     except ToolError as e:
-        # Audit log the failed tool call
+        # A ToolError during execution means the plugin raised (an expected
+        # business error or an unexpected crash). Surface it as a graceful
+        # isError content result, not a JSON-RPC protocol error.
         log_tool_call(
             tool_name=tool_name,
             arguments=arguments,
@@ -189,9 +238,12 @@ async def handle_tools_call(
             error=str(e),
             session_id=session_id,
         )
-        # Re-raise for caller to handle as JSON-RPC error
-        raise e
+        return {
+            "content": [{"type": "text", "text": str(e)}],
+            "isError": True,
+        }
     except TypeError as e:
+        # Bad arguments raised during plugin execution / argument validation.
         log_tool_call(
             tool_name=tool_name,
             arguments=arguments,
@@ -199,7 +251,10 @@ async def handle_tools_call(
             error=f"Invalid arguments: {str(e)}",
             session_id=session_id,
         )
-        raise ToolError(f"Invalid arguments: {str(e)}") from e
+        return {
+            "content": [{"type": "text", "text": f"Invalid arguments: {str(e)}"}],
+            "isError": True,
+        }
     except Exception as e:
         log_tool_call(
             tool_name=tool_name,
