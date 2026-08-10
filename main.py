@@ -18,6 +18,7 @@ from mcp.server.fastmcp import FastMCP
 from vestibule import PluginManager
 from vestibule.approval import APPROVE_TOOL_NAME, configure_approval, grant_approval
 from vestibule.config import Config
+from vestibule.envfile import load_env_into_environment
 from vestibule.transports.http_sse import HTTPSSETransport
 from vestibule.transports.stdio import StdioTransport
 
@@ -93,6 +94,9 @@ async def main() -> int:
         int: Exit code (0 for success, non-zero for failure)
     """
     args = parse_args()
+
+    # Load user-managed .env into the environment before plugins read secrets.
+    load_env_into_environment()
 
     print(f"Starting Vestibule MCP Server ({args.transport} transport)...", file=sys.stderr)
 
