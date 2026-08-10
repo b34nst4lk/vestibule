@@ -77,23 +77,38 @@ async def _tool_exists(mcp_server: FastMCP, tool_name: str) -> bool:
     return any(tool.name == tool_name for tool in tools)
 
 
+def _iter_content_nodes(obj: Any):
+    """Yield all nested content nodes (lists, tuples, dicts, or objects).
+
+    Recursively descends into lists/tuples and dict values. A dict that carries
+    a ``text`` key is treated as a leaf so its text is collected; other dicts
+    are walked for their values.
+    """
+    if isinstance(obj, (list, tuple)):
+        for item in obj:
+            yield from _iter_content_nodes(item)
+    elif isinstance(obj, dict):
+        if "text" in obj:
+            yield obj
+        else:
+            for value in obj.values():
+                yield from _iter_content_nodes(value)
+    else:
+        yield obj
+
+
 def _collect_text(items: Any) -> list[str]:
     """Collect ``text`` from TextContent objects or dicts in a sequence.
 
-    Recursively descends into nested lists/tuples and dict values so
+    Separates tree traversal (``_iter_content_nodes``) from text extraction so
     text-bearing parts nested in non-sequence elements are still found.
     """
     parts = []
-    for item in items:
-        if hasattr(item, "text"):
-            parts.append(item.text)
-        elif isinstance(item, dict):
-            if "text" in item:
-                parts.append(item["text"])
-            else:
-                parts.extend(_collect_text(item.values()))
-        elif isinstance(item, (list, tuple)):
-            parts.extend(_collect_text(item))
+    for node in _iter_content_nodes(items):
+        if hasattr(node, "text"):
+            parts.append(node.text)
+        elif isinstance(node, dict) and "text" in node:
+            parts.append(node["text"])
     return parts
 
 
@@ -106,18 +121,13 @@ def _extract_text_content(result: Any) -> str:
     """
     # CallToolResult (or any object exposing .content)
     content = getattr(result, "content", None)
-    if content:
+    if content is not None:
         parts = _collect_text(content)
         if parts:
             return "\n".join(parts)
-    # FastMCP default output wrap returns (unstructured, structured) tuple.
-    # Collect text from every element (lists, tuples, dicts, or objects).
-    if isinstance(result, tuple):
-        parts = _collect_text(result)
-        if parts:
-            return "\n".join(parts)
-    # structured_output=False success path returns list of TextContent
-    if isinstance(result, list):
+    # FastMCP default output wrap returns (unstructured, structured) tuple,
+    # and structured_output=False success returns a list of TextContent.
+    if isinstance(result, (tuple, list)):
         parts = _collect_text(result)
         if parts:
             return "\n".join(parts)

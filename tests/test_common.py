@@ -11,7 +11,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import CallToolResult, TextContent
 
-from vestibule.transports.common import handle_tools_call
+from vestibule.transports.common import _collect_text, _extract_text_content, handle_tools_call
 
 
 def _make_server() -> FastMCP:
@@ -94,3 +94,18 @@ async def test_unknown_tool_raises_tool_error():
     await server.list_tools()
     with pytest.raises(ToolError):
         await handle_tools_call(server, "missing", {})
+
+
+def test_collect_text_dict_text_leaf():
+    """A dict content block carrying a 'text' key is collected as text.
+
+    Guards the traversal refactor: a text-bearing dict must be treated as a
+    leaf (its text collected), not walked for values (which would drop it).
+    """
+    assert _collect_text([{"type": "text", "text": "hello from dict"}]) == ["hello from dict"]
+
+
+def test_extract_text_content_nested_tuple():
+    """Text nested in a tuple element (e.g. FastMCP's (unstructured, structured)) is found."""
+    result = ([TextContent(type="text", text="unstructured")], {"structured": "ignored"})
+    assert _extract_text_content(result) == "unstructured"
