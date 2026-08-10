@@ -85,6 +85,8 @@ not a silent break.
   quick `uv run python -c "..."` before assuming a branch is exercised.
 - **Run Sourcery review and address it before merging**, while the code is still
   in the PR — not after.
+- **Do NOT auto-merge PRs.** Open the PR, get CI + Sourcery green, then leave
+  the merge to the user (or to their explicit go-ahead).
 - **`gh` keyring times out** — run `export GH_TOKEN=$(gh auth token)` before gh
   commands.
 - **`.coverage` is a tracked binary** that changes on every test run. It is now
