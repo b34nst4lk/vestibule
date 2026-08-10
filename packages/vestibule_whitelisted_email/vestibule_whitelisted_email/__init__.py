@@ -13,7 +13,7 @@ from email.mime.text import MIMEText
 from typing import Any
 
 from mcp.types import CallToolResult, TextContent
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 
 from vestibule import hooks
 
@@ -62,11 +62,11 @@ class EmailPluginConfig(BaseModel):
 def vestibule_register_plugin_info() -> tuple[str, hooks.PluginMetadata]:
     """Return plugin metadata."""
     meta = hooks.PluginMetadata(
-        name="email",
+        name="whitelisted_email",
         version="0.1.0",
-        description="Email whitelisting plugin - send emails only to pre-approved recipients",
+        description="Whitelisted email plugin - send emails only to pre-approved recipients",
     )
-    return "email", meta
+    return "whitelisted_email", meta
 
 
 # -----------------------------------------------------------------------------
@@ -97,13 +97,13 @@ def vestibule_validate_secrets() -> tuple[str, bool, str]:
 
     if not smtp_password:
         return (
-            "email",
+            "whitelisted_email",
             False,
             "EMAIL_SMTP_PASSWORD is required (SMTP password or app-specific password)",
         )
 
     # smtp_user is optional - some SMTP servers only need the password
-    return "email", True, ""
+    return "whitelisted_email", True, ""
 
 
 @hooks.hookimpl
@@ -112,12 +112,10 @@ def vestibule_approval_policy() -> dict[str, str]:
 
     - ``send_email``: first_only — sending is a write action; ask once, then
       allow for the session.
-    - ``add_to_whitelist``: always — mutates the whitelist; ask every time.
     - ``list_whitelist``: never — read-only; no approval needed.
     """
     return {
         "send_email": "first_only",
-        "add_to_whitelist": "always",
         "list_whitelist": "never",
     }
 
@@ -160,6 +158,12 @@ def vestibule_register_tools(mcp_server: Any) -> None:
         # Get configuration from environment or use defaults
         config = _get_config_from_env()
 
+        # Reject CR/LF in header-bearing inputs so header injection is impossible
+        # and surfaces as a clean validation error, not a confusing SMTP failure.
+        err = _reject_newlines(recipient_name, subject, cc_recipient_name or "")
+        if err:
+            return _error_result(err)
+
         # Resolve recipient from whitelist
         recipient_email = _resolve_recipient(recipient_name, config.whitelist)
         if not recipient_email:
@@ -179,13 +183,15 @@ def vestibule_register_tools(mcp_server: Any) -> None:
                 )
 
         # Get SMTP credentials from environment
-        smtp_password = os.getenv("EMAIL_SMTP_PASSWORD")
+        smtp_password_raw = os.getenv("EMAIL_SMTP_PASSWORD", "")
         smtp_user = os.getenv("EMAIL_SMTP_USER", config.sender_email)
 
-        if not smtp_password:
+        if not smtp_password_raw:
             return _error_result(
                 "SMTP password not configured. Set EMAIL_SMTP_PASSWORD environment variable."
             )
+        # Wrap in SecretStr so the audit log masks it if it ever leaks into a result.
+        smtp_password = SecretStr(smtp_password_raw)
 
         try:
             # Create the email message
@@ -215,7 +221,7 @@ def vestibule_register_tools(mcp_server: Any) -> None:
             else:
                 server = smtplib.SMTP(config.smtp_host, config.smtp_port)
 
-            server.login(smtp_user, smtp_password)
+            server.login(smtp_user, smtp_password.get_secret_value())
             server.sendmail(config.sender_email, all_recipients, msg.as_string())
             server.quit()
 
@@ -251,31 +257,6 @@ def vestibule_register_tools(mcp_server: Any) -> None:
             lines.append(f"  - {name}: {email}")
         return "\n".join(lines)
 
-    @mcp_server.tool(structured_output=False)
-    def add_to_whitelist(name: str, email: str) -> str:
-        """
-        Add a recipient to the whitelist.
-
-        Note: This only adds to the runtime whitelist. For permanent additions,
-        update the configuration file.
-
-        Args:
-            name: Friendly name for the recipient
-            email: Actual email address
-
-        Returns:
-            str: Confirmation message
-        """
-        # Validate email format
-        if "@" not in email or "." not in email.split("@")[-1]:
-            return _error_result(f"Invalid email address format: {email}")
-
-        # Add to runtime whitelist
-        config = _get_config_from_env()
-        config.whitelist[name.lower()] = email
-
-        return f"Added '{name}' ({email}) to the whitelist."
-
 
 # -----------------------------------------------------------------------------
 # Helper Functions
@@ -288,6 +269,20 @@ def _error_result(message: str) -> CallToolResult:
         content=[TextContent(type="text", text=message)],
         isError=True,
     )
+
+
+def _reject_newlines(*values: str) -> str | None:
+    """Return an error message if any value contains a CR/LF, else ``None``.
+
+    Header-bearing inputs (subject, recipient names) must not contain newlines;
+    the stdlib email library rejects embedded headers, but we reject them up
+    front so the failure is a clean validation error rather than a confusing
+    SMTP error.
+    """
+    for value in values:
+        if value and ("\n" in value or "\r" in value):
+            return "Values must not contain newlines (CR/LF)"
+    return None
 
 
 def _get_config_from_env() -> EmailPluginConfig:

@@ -80,9 +80,8 @@ def test_list_tools_http(http_client: httpx.Client):
     tools = result["result"]["tools"]
     tool_names = {t["name"] for t in tools}
 
-    assert "email.send_email" in tool_names
-    assert "email.list_whitelist" in tool_names
-    assert "email.add_to_whitelist" in tool_names
+    assert "whitelisted_email.send_email" in tool_names
+    assert "whitelisted_email.list_whitelist" in tool_names
 
 
 @pytest.mark.integration
@@ -107,7 +106,7 @@ def test_list_whitelist_http(http_client: httpx.Client):
         "jsonrpc": "2.0",
         "id": 2,
         "method": "tools/call",
-        "params": {"name": "email.list_whitelist", "arguments": {}},
+        "params": {"name": "whitelisted_email.list_whitelist", "arguments": {}},
     }
     response = http_client.post("/mcp", json=call_request, timeout=5.0)
     assert response.status_code == 200
@@ -144,7 +143,7 @@ def test_send_email_recipient_not_found_http(http_client: httpx.Client):
             "method": "tools/call",
             "params": {
                 "name": "approve_tool",
-                "arguments": {"tool_name": "email.send_email"},
+                "arguments": {"tool_name": "whitelisted_email.send_email"},
             },
         },
         timeout=5.0,
@@ -156,7 +155,7 @@ def test_send_email_recipient_not_found_http(http_client: httpx.Client):
         "id": 3,
         "method": "tools/call",
         "params": {
-            "name": "email.send_email",
+            "name": "whitelisted_email.send_email",
             "arguments": {
                 "recipient_name": "Unknown",
                 "subject": "Test Subject",
@@ -179,6 +178,67 @@ def test_send_email_recipient_not_found_http(http_client: httpx.Client):
 
 @pytest.mark.integration
 @pytest.mark.http
+def test_send_email_unauthorized_blocked_after_approval_http(http_client: httpx.Client):
+    """Defense-in-depth: approving send_email must NOT weaken the per-recipient gate.
+
+    Even after send_email is approved (first_only unlock), an unauthorized
+    recipient must still be blocked. The approval gate and the whitelist
+    gate are independent.
+    """
+    init_request = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": {"name": "test", "version": "1.0"},
+        },
+    }
+    http_client.post("/mcp", json=init_request, timeout=5.0)
+
+    # Grant approval for the gated send_email tool.
+    http_client.post(
+        "/mcp",
+        json={
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/call",
+            "params": {
+                "name": "approve_tool",
+                "arguments": {"tool_name": "whitelisted_email.send_email"},
+            },
+        },
+        timeout=5.0,
+    )
+
+    # Mallory is NOT in the whitelist (alice, bob only).
+    call_request = {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/call",
+        "params": {
+            "name": "whitelisted_email.send_email",
+            "arguments": {
+                "recipient_name": "mallory",
+                "subject": "Test Subject",
+                "body": "Test body",
+            },
+        },
+    }
+    response = http_client.post("/mcp", json=call_request, timeout=5.0)
+    assert response.status_code == 200
+    result = response.json()
+    assert "result" in result
+    content = result["result"]["content"][0]["text"]
+    # The whitelist gate still blocks the unauthorized recipient.
+    assert result["result"]["isError"] is True
+    assert "mallory" in content
+    assert "whitelist" in content.lower()
+
+
+@pytest.mark.integration
+@pytest.mark.http
 def test_approval_flow_http(http_client: httpx.Client):
     """Gated tool requires approval; approve_tool grants it; retry executes."""
     init_request = {
@@ -193,7 +253,7 @@ def test_approval_flow_http(http_client: httpx.Client):
     }
     http_client.post("/mcp", json=init_request, timeout=5.0)
 
-    # First call to the gated email.send_email tool requires approval.
+    # First call to the gated whitelisted_email.send_email tool requires approval.
     gated = http_client.post(
         "/mcp",
         json={
@@ -201,7 +261,7 @@ def test_approval_flow_http(http_client: httpx.Client):
             "id": 2,
             "method": "tools/call",
             "params": {
-                "name": "email.send_email",
+                "name": "whitelisted_email.send_email",
                 "arguments": {
                     "recipient_name": "alice",
                     "subject": "Hello",
@@ -214,7 +274,7 @@ def test_approval_flow_http(http_client: httpx.Client):
     assert "result" in gated
     structured = gated["result"]["structuredContent"]
     assert structured["approval_required"] is True
-    assert structured["tool"] == "email.send_email"
+    assert structured["tool"] == "whitelisted_email.send_email"
     assert structured["arguments"]["recipient_name"] == "alice"
 
     # Grant approval via the built-in approve_tool.
@@ -226,7 +286,7 @@ def test_approval_flow_http(http_client: httpx.Client):
             "method": "tools/call",
             "params": {
                 "name": "approve_tool",
-                "arguments": {"tool_name": "email.send_email"},
+                "arguments": {"tool_name": "whitelisted_email.send_email"},
             },
         },
         timeout=5.0,
@@ -241,7 +301,7 @@ def test_approval_flow_http(http_client: httpx.Client):
             "id": 4,
             "method": "tools/call",
             "params": {
-                "name": "email.send_email",
+                "name": "whitelisted_email.send_email",
                 "arguments": {
                     "recipient_name": "alice",
                     "subject": "Hello",

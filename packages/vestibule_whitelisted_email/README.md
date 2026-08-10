@@ -1,4 +1,4 @@
-# Vestibule Email Whitelisting Plugin
+# Vestibule Whitelisted Email Plugin
 
 A plugin for the Vestibule MCP server that provides email sending capabilities with recipient whitelisting.
 
@@ -12,13 +12,13 @@ A plugin for the Vestibule MCP server that provides email sending capabilities w
 ## Installation
 
 ```bash
-pip install vestibule-email
+pip install vestibule-whitelisted-email
 ```
 
 Or for development:
 
 ```bash
-cd packages/vestibule_email
+cd packages/vestibule_whitelisted_email
 uv pip install -e .
 ```
 
@@ -29,7 +29,7 @@ uv pip install -e .
 Add to your `.vestibule/config.toml` or `~/.vestibule/config.toml`:
 
 ```toml
-[tool.vestibule.plugins.email]
+[tool.vestibule.plugins.whitelisted_email]
 smtp_host = "smtp.gmail.com"
 smtp_port = 587
 smtp_use_tls = true
@@ -37,7 +37,7 @@ sender_email = "you@gmail.com"
 sender_name = "Your Name"
 
 # Whitelist: friendly name -> email address
-[tool.vestibule.plugins.email.whitelist]
+[tool.vestibule.plugins.whitelisted_email.whitelist]
 alice = "alice@example.com"
 bob = "bob@example.com"
 team = "team@company.com"
@@ -101,21 +101,9 @@ List all whitelisted recipients.
 list_whitelist()
 ```
 
-### `add_to_whitelist`
-
-Add a recipient to the runtime whitelist.
-
-**Parameters:**
-- `name`: Friendly name
-- `email`: Email address
-
-**Example:**
-```
-add_to_whitelist(name="Charlie", email="charlie@example.com")
-```
-
 ## Security Notes
 
-- The whitelist prevents sending emails to unauthorized recipients
-- Credentials are loaded from environment variables, not configuration files
-- TLS is enabled by default for SMTP connections
+- The whitelist is the **hard authorization boundary**: only operator-curated recipients (from `EMAIL_WHITELIST`) can receive emails. There is no tool to add recipients at runtime — the AI cannot escalate the whitelist.
+- The whitelist is loaded from `EMAIL_WHITELIST` at startup and is read-only for the AI.
+- Credentials are loaded from environment variables, not configuration files, and are never exposed in tool results.
+- TLS is enabled by default for SMTP connections.

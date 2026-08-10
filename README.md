@@ -38,10 +38,10 @@ uv sync
 
 This installs:
 - `vestibule` — the core MCP server
-- `vestibule-email` — email whitelisting plugin (workspace only)
+- `vestibule-whitelisted-email` — whitelisted email plugin (workspace only)
 - `vestibule-example` — minimal example plugin for plugin authors
 
-> **Note:** The `vestibule-email` plugin is included as a workspace package for testing. A standalone PyPI package will be available in a future release. The `vestibule-example` plugin demonstrates the plugin API but is **not** published to PyPI.
+> **Note:** The `vestibule-whitelisted-email` plugin is included as a workspace package for testing. A standalone PyPI package will be available in a future release. The `vestibule-example` plugin demonstrates the plugin API but is **not** published to PyPI.
 
 ### Configuration
 
@@ -56,11 +56,11 @@ transport = "stdio"
 [tool.vestibule.approval]
 enabled = true
 
-[tool.vestibule.plugins.email]
+[tool.vestibule.plugins.whitelisted_email]
 smtp_host = "smtp.gmail.com"
 sender_email = "you@gmail.com"
 
-[tool.vestibule.plugins.email.whitelist]
+[tool.vestibule.plugins.whitelisted_email.whitelist]
 alice = "alice@example.com"
 bob = "bob@example.com"
 ```
@@ -92,28 +92,27 @@ Sensitive tools can be gated behind a human-in-the-loop approval check. The **ap
 enabled = true
 
 [tool.vestibule.approval.overrides]
-email.send_email = "never"   # always allow (operator override)
+whitelisted_email.send_email = "never"   # always allow (operator override)
 ```
 
 - **`never`** — no approval required.
 - **`first_only`** — the first call to a gated tool requires approval; once approved, subsequent calls skip.
 - **`always`** — every call to a gated tool requires approval.
 
-Plugins declare their default policy. For example, the email plugin declares:
+Plugins declare their default policy. For example, the whitelisted email plugin declares:
 
 ```python
 @hooks.hookimpl
 def vestibule_approval_policy():
     return {
-        "send_email": "first_only",      # sending is a write action
-        "add_to_whitelist": "always",    # mutates the whitelist
-        "list_whitelist": "never",       # read-only
+        "send_email": "first_only",  # sending is a write action
+        "list_whitelist": "never",   # read-only
     }
 ```
 
 The effective mode for a tool is: **operator override → plugin policy → not gated**. `[tool.vestibule.approval.overrides]` lets the operator tighten or loosen any tool in either direction, even across plugins. Tools with no declared policy and no override are not gated. Setting `enabled = false` disables all approval gating.
 
-**Tool names are namespaced by plugin** (`<plugin_name>.<tool>`), so the same tool name in two plugins never collides. Plugins register tools with bare names; the server exposes them as `email.send_email`, `email.list_whitelist`, etc. Approval policies and operator overrides use the full namespaced name.
+**Tool names are namespaced by plugin** (`<plugin_name>.<tool>`), so the same tool name in two plugins never collides. Plugins register tools with bare names; the server exposes them as `whitelisted_email.send_email`, `whitelisted_email.list_whitelist`, etc. Approval policies and operator overrides use the full namespaced name.
 
 When a gated tool is called and approval is required, the server returns a structured `approval_required` response instead of executing the tool. The client grants approval by calling the built-in **`approve_tool`** tool, then retries the call. Approval state is held in memory only (runtime, not persistent).
 
@@ -122,7 +121,7 @@ When a gated tool is called and approval is required, the server returns a struc
 Tool results and errors follow a single convention across both transports:
 
 - **Protocol/transport errors** — unknown tool, malformed request, method not found, invalid request — are returned as **JSON-RPC error objects** (e.g. `method_not_found`). These are not tool answers.
-- **Tool business errors** — a tool that runs but cannot complete (a recipient not in the whitelist, an invalid argument, a rate-limit hit, an approval requirement, an unexpected crash) — are returned as a normal tool **`content` with `isError: true`**. The message is human/LLM-readable so a client can react (e.g. recover by calling `add_to_whitelist`).
+- **Tool business errors** — a tool that runs but cannot complete (a recipient not in the whitelist, an invalid argument, a rate-limit hit, an approval requirement, an unexpected crash) — are returned as a normal tool **`content` with `isError: true`**. The message is human/LLM-readable so a client can react (e.g. recover by retrying with a whitelisted recipient).
 - **Approval requirements** additionally include `structuredContent` (`approval_required: true`) for replay, and use `isError: false` (a soft-stop, not an error).
 
 This split matters for AI clients: an LLM reads tool `content`, but a `tools/call` **JSON-RPC error** is often swallowed by the client framework before it reaches the model. So business failures must never be encoded as JSON-RPC errors.
@@ -146,14 +145,13 @@ Raise an exception only for genuine crashes; the server wraps it into a graceful
 
 ## Available Plugins
 
-### vestibule-email (workspace only)
+### vestibule-whitelisted-email (workspace only)
 
-Email whitelisting plugin that allows sending emails only to pre-approved recipients.
+Whitelisted email plugin that allows sending emails only to pre-approved recipients.
 
-**Tools** (namespaced as `email.<tool>`):
-- `email.send_email(recipient_name, subject, body, cc_recipient_name)` - Send an email
-- `email.list_whitelist()` - List all whitelisted recipients
-- `email.add_to_whitelist(name, email)` - Add a recipient to the runtime whitelist
+**Tools** (namespaced as `whitelisted_email.<tool>`):
+- `whitelisted_email.send_email(recipient_name, subject, body, cc_recipient_name)` - Send an email
+- `whitelisted_email.list_whitelist()` - List all whitelisted recipients
 
 **Note:** This plugin is included as a workspace package for testing. A standalone PyPI package will be available in a future release.
 
@@ -232,8 +230,8 @@ vestibule/
       http_sse.py             # HTTP/SSE transport
       common.py               # Shared handlers
   packages/
-    vestibule_email/         # Email whitelisting plugin
-      vestibule_email/
+    vestibule_whitelisted_email/         # Whitelisted email plugin
+      vestibule_whitelisted_email/
         __init__.py
       tests/
   tests/                      # Server tests
@@ -249,7 +247,7 @@ vestibule/
 uv run pytest
 
 # Run with coverage
-uv run pytest --cov=vestibule --cov=packages/vestibule_email
+uv run pytest --cov=vestibule --cov=packages/vestibule_whitelisted_email
 
 # Run the server
 uv run python main.py
