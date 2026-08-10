@@ -1,7 +1,7 @@
 [project]
-name = "vestibule-email"
+name = "vestibule-whitelisted-email"
 version = "0.1.0"
-description = "Email whitelisting plugin for Vestibule MCP server"
+description = "Whitelisted email plugin for Vestibule MCP server"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -11,7 +11,7 @@ dependencies = [
 ]
 
 [project.entry-points."vestibule.plugins"]
-email = "vestibule_email"
+whitelisted_email = "vestibule_whitelisted_email"
 
 [build-system]
 requires = ["hatchling"]

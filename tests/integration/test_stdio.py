@@ -152,9 +152,8 @@ class TestStdioTransport:
         tools = result["result"]["tools"]
         tool_names = {t["name"] for t in tools}
 
-        assert "email.send_email" in tool_names
-        assert "email.list_whitelist" in tool_names
-        assert "email.add_to_whitelist" in tool_names
+        assert "whitelisted_email.send_email" in tool_names
+        assert "whitelisted_email.list_whitelist" in tool_names
 
     def test_ping(self, stdio_server: MCPStdioProcess):
         """Test ping request/response."""
@@ -168,7 +167,7 @@ class TestStdioTransport:
 
         # Use tools/call protocol to invoke plugin tools
         result = stdio_server.jsonrpc_request(
-            "tools/call", {"name": "email.list_whitelist", "arguments": {}}
+            "tools/call", {"name": "whitelisted_email.list_whitelist", "arguments": {}}
         )
         print(f"list_whitelist result: {result}")
 
@@ -184,12 +183,12 @@ class TestStdioTransport:
     def test_send_email_recipient_not_found(self, stdio_server: MCPStdioProcess):
         """Test send_email error when recipient is not in whitelist."""
         stdio_server.jsonrpc_request("initialize", {"protocolVersion": "2024-11-05"})
-        self._approve(stdio_server, "email.send_email")
+        self._approve(stdio_server, "whitelisted_email.send_email")
 
         result = stdio_server.jsonrpc_request(
             "tools/call",
             {
-                "name": "email.send_email",
+                "name": "whitelisted_email.send_email",
                 "arguments": {
                     "recipient_name": "Unknown",
                     "subject": "Test Subject",
@@ -205,60 +204,45 @@ class TestStdioTransport:
         assert "Unknown" in content_text
         assert "whitelist" in content_text.lower()
 
-    def test_add_to_whitelist(self, stdio_server: MCPStdioProcess):
-        """Test adding a new recipient to the whitelist."""
-        stdio_server.jsonrpc_request("initialize", {"protocolVersion": "2024-11-05"})
-        self._approve(stdio_server, "email.add_to_whitelist")
+    def test_send_email_unauthorized_blocked_after_approval(self, stdio_server: MCPStdioProcess):
+        """Defense-in-depth: approving send_email must NOT weaken the per-recipient gate.
 
+        Even after send_email is approved (first_only unlock), an unauthorized
+        recipient must still be blocked. The approval gate and the whitelist
+        gate are independent.
+        """
+        stdio_server.jsonrpc_request("initialize", {"protocolVersion": "2024-11-05"})
+        self._approve(stdio_server, "whitelisted_email.send_email")
+
+        # Mallory is NOT in the whitelist (alice, bob only).
         result = stdio_server.jsonrpc_request(
             "tools/call",
             {
-                "name": "email.add_to_whitelist",
+                "name": "whitelisted_email.send_email",
                 "arguments": {
-                    "name": "Charlie",
-                    "email": "charlie@example.com",
+                    "recipient_name": "mallory",
+                    "subject": "Test Subject",
+                    "body": "Test body",
                 },
             },
         )
-        print(f"add_to_whitelist result: {result}")
+        print(f"send_email unauthorized result: {result}")
 
-        assert result["result"]["isError"] is False
-        content_text = result["result"]["content"][0]["text"]
-        assert "Charlie" in content_text
-        assert "charlie@example.com" in content_text
-
-    def test_add_to_whitelist_invalid_email(self, stdio_server: MCPStdioProcess):
-        """Test add_to_whitelist rejects invalid email format."""
-        stdio_server.jsonrpc_request("initialize", {"protocolVersion": "2024-11-05"})
-        self._approve(stdio_server, "email.add_to_whitelist")
-
-        result = stdio_server.jsonrpc_request(
-            "tools/call",
-            {
-                "name": "email.add_to_whitelist",
-                "arguments": {
-                    "name": "Invalid",
-                    "email": "notanemail",
-                },
-            },
-        )
-        print(f"add_to_whitelist invalid result: {result}")
-
-        # Invalid email is a business error -> isError: true content.
+        # The whitelist gate still blocks the unauthorized recipient.
         assert result["result"]["isError"] is True
         content_text = result["result"]["content"][0]["text"]
-        assert "Invalid" in content_text or "invalid" in content_text.lower()
-        assert "email" in content_text.lower()
+        assert "mallory" in content_text
+        assert "whitelist" in content_text.lower()
 
     def test_approval_flow(self, stdio_server: MCPStdioProcess):
         """Gated tool requires approval; approve_tool grants it; retry executes."""
         stdio_server.jsonrpc_request("initialize", {"protocolVersion": "2024-11-05"})
 
-        # First call to the gated email.send_email tool requires approval.
+        # First call to the gated whitelisted_email.send_email tool requires approval.
         gated = stdio_server.jsonrpc_request(
             "tools/call",
             {
-                "name": "email.send_email",
+                "name": "whitelisted_email.send_email",
                 "arguments": {
                     "recipient_name": "alice",
                     "subject": "Hello",
@@ -270,7 +254,7 @@ class TestStdioTransport:
         assert "error" not in gated
         structured = gated["result"]["structuredContent"]
         assert structured["approval_required"] is True
-        assert structured["tool"] == "email.send_email"
+        assert structured["tool"] == "whitelisted_email.send_email"
         assert structured["arguments"]["recipient_name"] == "alice"
 
         # Grant approval via the built-in approve_tool.
@@ -278,7 +262,7 @@ class TestStdioTransport:
             "tools/call",
             {
                 "name": "approve_tool",
-                "arguments": {"tool_name": "email.send_email"},
+                "arguments": {"tool_name": "whitelisted_email.send_email"},
             },
         )
         print(f"approve result: {approved}")
@@ -288,7 +272,7 @@ class TestStdioTransport:
         retry = stdio_server.jsonrpc_request(
             "tools/call",
             {
-                "name": "email.send_email",
+                "name": "whitelisted_email.send_email",
                 "arguments": {
                     "recipient_name": "alice",
                     "subject": "Hello",

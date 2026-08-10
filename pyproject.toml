@@ -19,10 +19,10 @@ vestibule = "vestibule.cli:main"
 
 [project.entry-points."vestibule.plugins"]
 # Plugins register here, e.g.:
-# email = "vestibule_email"
+# whitelisted_email = "vestibule_whitelisted_email"
 
 [tool.uv.workspace]
-members = ["packages/vestibule_email", "packages/vestibule_example"]
+members = ["packages/vestibule_whitelisted_email", "packages/vestibule_example"]
 
 [tool.uv.sources]
 vestibule = { workspace = true }
@@ -58,7 +58,7 @@ ignore = [
 known-first-party = ["vestibule"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "packages/vestibule_email/tests", "packages/vestibule_example/tests"]
+testpaths = ["tests", "packages/vestibule_whitelisted_email/tests", "packages/vestibule_example/tests"]
 markers = [
     "integration: Integration tests (stdio/HTTP)",
     "http: HTTP/SSE transport tests (requires running server)",

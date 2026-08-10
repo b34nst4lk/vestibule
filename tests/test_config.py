@@ -189,12 +189,12 @@ class TestPluginConfig:
 [tool.vestibule]
 host = "127.0.0.1"
 
-[tool.vestibule.plugins.email]
+[tool.vestibule.plugins.whitelisted_email]
 smtp_host = "smtp.gmail.com"
 smtp_port = 587
 sender_email = "test@example.com"
 
-[tool.vestibule.plugins.email.whitelist]
+[tool.vestibule.plugins.whitelisted_email.whitelist]
 alice = "alice@example.com"
 bob = "bob@example.com"
 
@@ -203,10 +203,10 @@ timezone = "UTC"
 """)
 
             config = Config.load()
-            assert "email" in config.plugins
-            assert config.plugins["email"]["smtp_host"] == "smtp.gmail.com"
-            assert config.plugins["email"]["smtp_port"] == 587
-            assert config.plugins["email"]["whitelist"]["alice"] == "alice@example.com"
+            assert "whitelisted_email" in config.plugins
+            assert config.plugins["whitelisted_email"]["smtp_host"] == "smtp.gmail.com"
+            assert config.plugins["whitelisted_email"]["smtp_port"] == 587
+            assert config.plugins["whitelisted_email"]["whitelist"]["alice"] == "alice@example.com"
             assert "calendar" in config.plugins
             assert config.plugins["calendar"]["timezone"] == "UTC"
 

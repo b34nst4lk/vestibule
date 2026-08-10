@@ -5,7 +5,7 @@ Tests for the Vestibule Email Whitelisting Plugin.
 import os
 from unittest.mock import MagicMock, patch
 
-from vestibule_email import (
+from vestibule_whitelisted_email import (
     EmailPluginConfig,
     vestibule_config_schema,
     vestibule_register_plugin_info,
@@ -27,9 +27,9 @@ class TestPluginMetadata:
         assert len(result) == 2
 
         name, metadata = result
-        assert name == "email"
+        assert name == "whitelisted_email"
         assert isinstance(metadata, hooks.PluginMetadata)
-        assert metadata.name == "email"
+        assert metadata.name == "whitelisted_email"
         assert metadata.version == "0.1.0"
         assert "whitelist" in metadata.description.lower()
 
@@ -84,7 +84,7 @@ class TestSecretsValidation:
         with patch.dict(os.environ, {}, clear=True):
             plugin_name, is_valid, error_msg = vestibule_validate_secrets()
 
-            assert plugin_name == "email"
+            assert plugin_name == "whitelisted_email"
             assert is_valid is False
             assert "EMAIL_SMTP_PASSWORD" in error_msg
 
@@ -96,7 +96,7 @@ class TestSecretsValidation:
         ):
             plugin_name, is_valid, error_msg = vestibule_validate_secrets()
 
-            assert plugin_name == "email"
+            assert plugin_name == "whitelisted_email"
             assert is_valid is True
 
     def test_validate_secrets_with_optional_user(self):
@@ -110,7 +110,7 @@ class TestSecretsValidation:
         ):
             plugin_name, is_valid, error_msg = vestibule_validate_secrets()
 
-            assert plugin_name == "email"
+            assert plugin_name == "whitelisted_email"
             assert is_valid is True
 
 
@@ -126,7 +126,7 @@ class TestToolRegistration:
         vestibule_register_tools(mock_server)
 
         # tool() decorator should be called at least once for each tool
-        assert mock_server.tool.call_count >= 3
+        assert mock_server.tool.call_count >= 2
 
     def test_registered_tools(self):
         """Test that the expected tools are available after registration."""
@@ -149,10 +149,9 @@ class TestToolRegistration:
 
         assert "send_email" in registered_tools
         assert "list_whitelist" in registered_tools
-        assert "add_to_whitelist" in registered_tools
         # All email tools are registered with structured_output=False so they
         # can return CallToolResult directly (business errors as isError content).
-        for tool_name in ("send_email", "list_whitelist", "add_to_whitelist"):
+        for tool_name in ("send_email", "list_whitelist"):
             assert registered_tool_kwargs[tool_name]["structured_output"] is False
 
 
@@ -161,7 +160,7 @@ class TestSendEmailTool:
 
     def test_send_email_success(self, mock_smtp, env_config):
         """Test successful email sending."""
-        from vestibule_email import _get_config_from_env, _resolve_recipient
+        from vestibule_whitelisted_email import _get_config_from_env, _resolve_recipient
 
         config = _get_config_from_env()
         recipient_email = _resolve_recipient("Alice", config.whitelist)
@@ -170,7 +169,7 @@ class TestSendEmailTool:
 
     def test_send_email_recipient_not_in_whitelist(self, env_config):
         """Test error when recipient is not whitelisted."""
-        from vestibule_email import _get_config_from_env, _resolve_recipient
+        from vestibule_whitelisted_email import _get_config_from_env, _resolve_recipient
 
         config = _get_config_from_env()
         recipient_email = _resolve_recipient("Unknown", config.whitelist)
@@ -179,7 +178,7 @@ class TestSendEmailTool:
 
     def test_send_email_case_insensitive_lookup(self, env_config):
         """Test that recipient lookup is case-insensitive."""
-        from vestibule_email import _get_config_from_env, _resolve_recipient
+        from vestibule_whitelisted_email import _get_config_from_env, _resolve_recipient
 
         config = _get_config_from_env()
 
@@ -189,7 +188,7 @@ class TestSendEmailTool:
 
     def test_send_email_with_cc(self, mock_smtp, env_config):
         """Test email sending with CC recipient."""
-        from vestibule_email import _get_config_from_env, _resolve_recipient
+        from vestibule_whitelisted_email import _get_config_from_env, _resolve_recipient
 
         config = _get_config_from_env()
         recipient_email = _resolve_recipient("Alice", config.whitelist)
@@ -199,12 +198,78 @@ class TestSendEmailTool:
         assert cc_email == "bob@example.com"
 
 
+class TestNewlineSanitization:
+    """Tests for CR/LF rejection in header-bearing inputs."""
+
+    def test_reject_newline_in_subject(self):
+        """A newline in the subject is rejected (header injection guard)."""
+        from vestibule_whitelisted_email import _reject_newlines
+
+        err = _reject_newlines("alice", "Subject\nBcc: evil@example.com", "")
+        assert err is not None
+        assert "newline" in err.lower()
+
+    def test_reject_carriage_return_in_recipient(self):
+        """A CR/LF in a recipient name is rejected."""
+        from vestibule_whitelisted_email import _reject_newlines
+
+        err = _reject_newlines("alice\r\nBcc: evil@example.com", "Subject", "")
+        assert err is not None
+
+    def test_accept_clean_values(self):
+        """Clean subject and recipient names pass through."""
+        from vestibule_whitelisted_email import _reject_newlines
+
+        assert _reject_newlines("alice", "Subject", "") is None
+
+
+class TestCredentialIsolation:
+    """The SMTP password must never appear in any tool result."""
+
+    def _get_tools(self) -> dict:
+        """Register tools on a mock server and return the callable functions."""
+        mock_server = MagicMock()
+        tools = {}
+
+        def capture_tool(name=None, **kwargs):
+            def decorator(func):
+                tools[name or func.__name__] = func
+                return func
+
+            return decorator
+
+        mock_server.tool.side_effect = capture_tool
+        vestibule_register_tools(mock_server)
+        return tools
+
+    @staticmethod
+    def _text(result) -> str:
+        """Normalize a tool result (str or CallToolResult) to its text."""
+        if isinstance(result, str):
+            return result
+        if hasattr(result, "content"):
+            return " ".join(c.text for c in result.content)
+        return str(result)
+
+    def test_password_never_in_send_email_result(self, mock_smtp, env_config):
+        """send_email result must not leak the SMTP password."""
+        tools = self._get_tools()
+        result = tools["send_email"](recipient_name="alice", subject="Subject", body="Body")
+        assert "test_password" not in self._text(result)
+
+    def test_password_never_in_list_whitelist_result(self, env_config):
+        """list_whitelist result must not leak the SMTP password."""
+        tools = self._get_tools()
+        result = tools["list_whitelist"]()
+        assert "test_password" not in self._text(result)
+
+
 class TestListWhitelistTool:
     """Tests for the list_whitelist tool."""
 
     def test_list_whitelist_formats_output(self, env_config):
         """Test that whitelist is formatted correctly."""
-        from vestibule_email import _get_config_from_env
+        from vestibule_whitelisted_email import _get_config_from_env
 
         config = _get_config_from_env()
 
@@ -220,42 +285,10 @@ class TestListWhitelistTool:
     def test_list_whitelist_empty(self):
         """Test whitelist output when empty."""
         with patch.dict(os.environ, {"EMAIL_WHITELIST": "{}"}):
-            from vestibule_email import _get_config_from_env
+            from vestibule_whitelisted_email import _get_config_from_env
 
             config = _get_config_from_env()
             assert config.whitelist == {}
-
-
-class TestAddToWhitelistTool:
-    """Tests for the add_to_whitelist tool."""
-
-    def test_add_to_whitelist_valid_email(self):
-        """Test adding a valid email to whitelist."""
-
-        whitelist = {"alice": "alice@example.com"}
-        new_email = "dave@example.com"
-
-        # Simple validation check
-        assert "@" in new_email
-        assert "." in new_email.split("@")[-1]
-
-        whitelist["dave"] = new_email
-        assert "dave" in whitelist
-        assert whitelist["dave"] == "dave@example.com"
-
-    def test_add_to_whitelist_invalid_email(self):
-        """Test that invalid emails are rejected."""
-        invalid_emails = [
-            "notanemail",
-            "missing@domain",
-            "@nodomain.com",
-            "spaces @domain.com",
-        ]
-
-        for email in invalid_emails:
-            is_valid = "@" in email and "." in email.split("@")[-1]
-            if not is_valid:
-                assert True  # Would be rejected by the tool
 
 
 class TestHelperFunctions:
@@ -263,7 +296,7 @@ class TestHelperFunctions:
 
     def test_get_config_from_env(self, env_config):
         """Test configuration loading from environment."""
-        from vestibule_email import _get_config_from_env
+        from vestibule_whitelisted_email import _get_config_from_env
 
         config = _get_config_from_env()
 
@@ -277,7 +310,7 @@ class TestHelperFunctions:
     def test_get_config_from_env_defaults(self):
         """Test configuration defaults when env vars are missing."""
         with patch.dict(os.environ, {}, clear=True):
-            from vestibule_email import _get_config_from_env
+            from vestibule_whitelisted_email import _get_config_from_env
 
             config = _get_config_from_env()
 
@@ -289,7 +322,7 @@ class TestHelperFunctions:
     def test_get_config_from_env_invalid_json(self):
         """Test that invalid JSON in whitelist falls back to empty dict."""
         with patch.dict(os.environ, {"EMAIL_WHITELIST": "not valid json"}):
-            from vestibule_email import _get_config_from_env
+            from vestibule_whitelisted_email import _get_config_from_env
 
             config = _get_config_from_env()
             assert config.whitelist == {}

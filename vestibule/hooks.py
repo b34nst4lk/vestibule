@@ -159,7 +159,6 @@ def vestibule_approval_policy() -> dict[str, str]:
         def vestibule_approval_policy():
             return {
                 "send_email": "first_only",
-                "add_to_whitelist": "always",
                 "list_whitelist": "never",
             }
     """
