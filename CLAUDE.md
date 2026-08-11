@@ -78,6 +78,35 @@ changes are contained. If you must touch internals, isolate them and add a test
 that pins the behavior — an upstream change should surface as a failing test,
 not a silent break.
 
+## Coding style: ponytail (always-on, default `full`)
+
+Write the laziest solution that actually works. The best code is the code never written. Climb this ladder before writing anything, stop at the first rung that holds:
+
+1. **Does this need to exist?** Speculative need = skip it. (YAGNI)
+2. **Already in this codebase?** Reuse the existing helper/util/pattern.
+3. **Stdlib does it?** Use it.
+4. **Native platform feature?** Use it.
+5. **Already-installed dependency solves it?** Use it; never add a new dep for a few lines.
+6. **Can it be one line?** One line.
+7. **Only then:** the minimum code that works.
+
+The ladder runs *after* understanding the problem, not instead of it: read the code the change touches, trace the real flow first. Lazy about the solution, never about reading.
+
+Rules:
+- No unrequested abstractions (interface with one impl, factory for one product, config for a constant).
+- Deletion over addition. Boring over clever. Fewest files, shortest working diff.
+- Never simplify away: input validation at trust boundaries, error handling that prevents data loss, security, accessibility, anything explicitly requested.
+- Bug fix = root cause, not symptom. Grep every caller of the function you're about to touch; fix once where all callers route through.
+- Mark a deliberate shortcut with a `ponytail:` comment naming the ceiling + upgrade path.
+- Non-trivial logic leaves ONE runnable check (an `assert`-based self-check or one small `test_*.py`). No frameworks/fixtures unless asked.
+- Explanation shorter than the code is debt; delete it. Only explain what was skipped and when to add it.
+
+The full skill (intensity levels, review/audit commands) is available as `/skill:ponytail`.
+
+## Verbosity
+
+Be terse. Give the answer, the diff, and at most a few short lines of rationale. No feature tours, no status recaps, no praise, no hedging prose, no "let me know if...". Match the brevity of the code you write.
+
 ## Engineering conventions
 
 - **Verify runtime behavior before writing tests/assertions.** FastMCP's wrapping

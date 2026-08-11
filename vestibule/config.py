@@ -16,15 +16,9 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field, PrivateAttr
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
 from .approval import ApprovalMode, normalize_approval_modes
-
-
-class ConfigValidationError(Exception):
-    """Raised when configuration validation fails."""
-
-    pass
 
 
 class Transport(StrEnum):
@@ -58,6 +52,10 @@ class Config(BaseModel):
     ``[tool.vestibule]`` section and are the source of truth for the typing and
     validation of server settings.
     """
+
+    # Coerce raw TOML values (e.g. str transport -> Transport enum) on
+    # assignment so `_merge` can assign them without manual conversion.
+    model_config = ConfigDict(validate_assignment=True)
 
     host: str = "127.0.0.1"
     port: int = 8080
@@ -131,74 +129,35 @@ class Config(BaseModel):
         """Load a single TOML config file into a flat dict for merging."""
         with open(path, "rb") as f:
             data = tomllib.load(f)
+        vestibule = data.get("tool", {}).get("vestibule", {})
 
-        result = {}
+        result: dict[str, Any] = {}
 
-        # Extract server settings from [tool.vestibule]
-        if "tool" in data and "vestibule" in data["tool"]:
-            vestibule_config = data["tool"]["vestibule"]
+        # Server settings + plugins + rate_limits from [tool.vestibule]. Values
+        # pass through raw; Pydantic coerces str -> enums on assignment in
+        # `_merge` (Config.validate_assignment).
+        for key in ("host", "port", "transport", "log_level", "plugins", "rate_limits"):
+            if key in vestibule:
+                result[key] = vestibule[key]
 
-            if "host" in vestibule_config:
-                result["host"] = vestibule_config["host"]
-            if "port" in vestibule_config:
-                result["port"] = vestibule_config["port"]
-            if "transport" in vestibule_config:
-                # Convert string to Transport enum
-                transport_val = vestibule_config["transport"]
-                if isinstance(transport_val, str):
-                    try:
-                        result["transport"] = Transport(transport_val.lower())
-                    except ValueError:
-                        result["transport"] = transport_val  # Keep as string, validate later
-                else:
-                    result["transport"] = transport_val
-            if "log_level" in vestibule_config:
-                # Convert string to LogLevel enum
-                log_level_val = vestibule_config["log_level"]
-                if isinstance(log_level_val, str):
-                    try:
-                        result["log_level"] = LogLevel(log_level_val.lower())
-                    except ValueError:
-                        result["log_level"] = log_level_val  # Keep as string, validate later
-                else:
-                    result["log_level"] = log_level_val
-
-        # Extract plugin configs from [tool.vestibule.plugins.<name>]
-        if "tool" in data and "vestibule" in data["tool"]:
-            vestibule_config = data["tool"]["vestibule"]
-            if "plugins" in vestibule_config:
-                result["plugins"] = vestibule_config["plugins"]
-
-        # Extract rate limits from [tool.vestibule.rate_limits]
-        if "tool" in data and "vestibule" in data["tool"]:
-            vestibule_config = data["tool"]["vestibule"]
-            if "rate_limits" in vestibule_config:
-                result["rate_limits"] = vestibule_config["rate_limits"]
-
-        # Extract approval config from [tool.vestibule.approval]
-        if "tool" in data and "vestibule" in data["tool"]:
-            vestibule_config = data["tool"]["vestibule"]
-            if "approval" in vestibule_config:
-                approval_config = vestibule_config["approval"]
-                if "enabled" in approval_config:
-                    result["approval_enabled"] = approval_config["enabled"]
-                if "overrides" in approval_config:
-                    result["approval_overrides"] = approval_config["overrides"]
+        # [tool.vestibule.approval] -> flattened keys for the backward-compat
+        # approval accessors (main.py / cli.py read cfg.approval_enabled etc.).
+        approval = vestibule.get("approval")
+        if isinstance(approval, dict):
+            if "enabled" in approval:
+                result["approval_enabled"] = approval["enabled"]
+            if "overrides" in approval:
+                result["approval_overrides"] = approval["overrides"]
 
         return result
 
     def _merge(self, other: dict[str, Any]) -> None:
         """Merge another config dict into this config."""
-        if "host" in other:
-            self.host = other["host"]
-        if "port" in other:
-            self.port = other["port"]
-        if "transport" in other:
-            val = other["transport"]
-            self.transport = val if isinstance(val, Transport) else Transport(val)
-        if "log_level" in other:
-            val = other["log_level"]
-            self.log_level = val if isinstance(val, LogLevel) else LogLevel(val)
+        # Scalar/enum fields: plain assignment; validate_assignment coerces raw
+        # TOML strings (e.g. "http" -> Transport.HTTP) to the field type.
+        for field in ("host", "port", "transport", "log_level"):
+            if field in other:
+                setattr(self, field, other[field])
         if "plugins" in other:
             # Merge plugin configs
             for plugin_name, plugin_config in other["plugins"].items():
