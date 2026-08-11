@@ -5,9 +5,10 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from pydantic import BaseModel
 
 from vestibule.approval import ApprovalMode
-from vestibule.config import Config
+from vestibule.config import ApprovalSettings, Config, LogLevel, Transport
 
 
 @pytest.fixture(autouse=True)
@@ -73,7 +74,7 @@ class TestConfigFileLoading:
 host = "0.0.0.0"
 port = 9000
 transport = "stdio"
-log-level = "debug"
+log_level = "debug"
 """)
 
             config = Config.load()
@@ -394,3 +395,68 @@ send_email = "never"
         config = Config()
         with pytest.raises(ValueError, match="Invalid approval mode"):
             config._merge({"approval_overrides": {"send_email": "sometimes"}})
+
+
+class TestConfigPydanticModel:
+    """Test that server settings are standardized on a Pydantic model."""
+
+    def test_config_is_pydantic_model(self):
+        """Config is a Pydantic BaseModel (schema as source of truth)."""
+        assert issubclass(Config, BaseModel)
+
+    def test_server_settings_fields(self):
+        """Config declares the server-setting fields with their types."""
+        fields = Config.model_fields
+        assert set(fields) >= {
+            "host",
+            "port",
+            "transport",
+            "log_level",
+            "plugins",
+            "rate_limits",
+            "approval",
+        }
+        assert fields["host"].annotation is str
+        assert fields["port"].annotation is int
+        assert fields["transport"].annotation is Transport
+        assert fields["log_level"].annotation is LogLevel
+
+    def test_approval_nested_model(self):
+        """Approval is a nested Pydantic model mirroring the TOML section."""
+        config = Config()
+        assert isinstance(config.approval, ApprovalSettings)
+        assert config.approval.enabled is True
+        assert config.approval.overrides == {}
+
+    def test_approval_overrides_coerced_via_model(self):
+        """Setting approval_overrides (via setter) coerces strings to ApprovalMode."""
+        config = Config()
+        config.approval_overrides = {"send_email": "never"}
+        assert config.approval.overrides["send_email"] is ApprovalMode.NEVER
+
+    def test_backward_compat_approval_accessors(self):
+        """Flattened approval_enabled/approval_overrides still work."""
+        config = Config()
+        assert config.approval_enabled is True
+        config.approval_enabled = False
+        assert config.approval.enabled is False
+
+        config.approval_overrides = {"send_email": "first_only"}
+        assert config.approval_overrides["send_email"] is ApprovalMode.FIRST_ONLY
+
+    def test_log_level_snake_case(self):
+        """[tool.vestibule] log_level (snake_case) is read from TOML."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            os.chdir(tmpdir)
+            os.environ["HOME"] = "/nonexistent"
+
+            project_config_dir = Path(tmpdir) / ".vestibule"
+            project_config_dir.mkdir()
+            project_config = project_config_dir / "config.toml"
+            project_config.write_text("""
+[tool.vestibule]
+log_level = "warning"
+""")
+
+            config = Config.load()
+            assert config.log_level is LogLevel.WARNING

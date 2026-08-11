@@ -3,12 +3,20 @@ Configuration loading for Vestibule MCP server.
 
 Handles TOML configuration file loading with multi-level merge:
 CLI --config > .vestibule/config.toml > ~/.vestibule/config.toml > defaults
+
+Configuration is standardized on Pydantic models. The ``Config`` model is the
+schema for server settings (``[tool.vestibule]``) and is the source of truth
+for their typing/validation. Plugin configs
+(``[tool.vestibule.plugins.<name>]``) are validated by each plugin's declared
+Pydantic schema via the ``vestibule_config_schema`` hook.
 """
 
 import tomllib
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
+
+from pydantic import BaseModel, Field, PrivateAttr
 
 from .approval import ApprovalMode, normalize_approval_modes
 
@@ -36,19 +44,48 @@ class LogLevel(StrEnum):
     ERROR = "error"
 
 
-class Config:
-    """Vestibule configuration."""
+class ApprovalSettings(BaseModel):
+    """The ``[tool.vestibule.approval]`` section."""
 
-    def __init__(self):
-        self.host: str = "127.0.0.1"
-        self.port: int = 8080
-        self.transport: Transport = Transport.STDIO
-        self.log_level: LogLevel = LogLevel.INFO
-        self.plugins: dict[str, dict[str, Any]] = {}
-        self.rate_limits: dict[str, int] = {}
-        self.approval_enabled: bool = True
-        self.approval_overrides: dict[str, ApprovalMode] = {}
-        self._plugin_schemas: dict[str, type] = {}
+    enabled: bool = True
+    overrides: dict[str, ApprovalMode] = Field(default_factory=dict)
+
+
+class Config(BaseModel):
+    """Vestibule configuration.
+
+    Standardized on Pydantic; the model's fields are the schema for the
+    ``[tool.vestibule]`` section and are the source of truth for the typing and
+    validation of server settings.
+    """
+
+    host: str = "127.0.0.1"
+    port: int = 8080
+    transport: Transport = Transport.STDIO
+    log_level: LogLevel = LogLevel.INFO
+    plugins: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    rate_limits: dict[str, int] = Field(default_factory=dict)
+    approval: ApprovalSettings = Field(default_factory=ApprovalSettings)
+
+    # Runtime-only: plugin config schemas registered via the config schema hook.
+    _plugin_schemas: dict[str, type] = PrivateAttr(default_factory=dict)
+
+    # Backward-compatible accessors for the flattened approval fields.
+    @property
+    def approval_enabled(self) -> bool:
+        return self.approval.enabled
+
+    @approval_enabled.setter
+    def approval_enabled(self, value: bool) -> None:
+        self.approval.enabled = value
+
+    @property
+    def approval_overrides(self) -> dict[str, ApprovalMode]:
+        return self.approval.overrides
+
+    @approval_overrides.setter
+    def approval_overrides(self, value: dict[str, ApprovalMode]) -> None:
+        self.approval.overrides = normalize_approval_modes(value)
 
     @classmethod
     def load(cls, config_path: str | None = None) -> "Config":
@@ -91,7 +128,7 @@ class Config:
 
     @classmethod
     def _load_file(cls, path: Path) -> dict[str, Any]:
-        """Load a single TOML config file."""
+        """Load a single TOML config file into a flat dict for merging."""
         with open(path, "rb") as f:
             data = tomllib.load(f)
 
@@ -115,9 +152,9 @@ class Config:
                         result["transport"] = transport_val  # Keep as string, validate later
                 else:
                     result["transport"] = transport_val
-            if "log-level" in vestibule_config:
+            if "log_level" in vestibule_config:
                 # Convert string to LogLevel enum
-                log_level_val = vestibule_config["log-level"]
+                log_level_val = vestibule_config["log_level"]
                 if isinstance(log_level_val, str):
                     try:
                         result["log_level"] = LogLevel(log_level_val.lower())
@@ -173,7 +210,7 @@ class Config:
         if "approval_enabled" in other:
             self.approval_enabled = other["approval_enabled"]
         if "approval_overrides" in other:
-            self.approval_overrides = normalize_approval_modes(other["approval_overrides"])
+            self.approval_overrides = other["approval_overrides"]
 
     def get_plugin_config(self, plugin_name: str) -> dict[str, Any]:
         """Get configuration for a specific plugin."""

@@ -9,7 +9,7 @@
 host = "localhost"
 port = 8080
 transport = "stdio"  # or "http-sse"
-log-level = "info"
+log_level = "info"
 
 # -----------------------------------------------------------------------------
 # Approval Workflow (human-in-the-loop)
