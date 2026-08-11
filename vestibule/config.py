@@ -3,6 +3,12 @@ Configuration loading for Vestibule MCP server.
 
 Handles TOML configuration file loading with multi-level merge:
 CLI --config > .vestibule/config.toml > ~/.vestibule/config.toml > defaults
+
+Configuration is standardized on Pydantic models. The ``Config`` model is the
+schema for server settings (``[tool.vestibule]``) and is the source of truth
+for their typing/validation. Plugin configs
+(``[tool.vestibule.plugins.<name>]``) are validated by each plugin's declared
+Pydantic schema via the ``vestibule_config_schema`` hook.
 """
 
 import tomllib
@@ -10,13 +16,9 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from .approval import ApprovalMode, normalize_approval_modes
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
-
-class ConfigValidationError(Exception):
-    """Raised when configuration validation fails."""
-
-    pass
+from .approval import ApprovalMode
 
 
 class Transport(StrEnum):
@@ -36,19 +38,44 @@ class LogLevel(StrEnum):
     ERROR = "error"
 
 
-class Config:
-    """Vestibule configuration."""
+class ApprovalSettings(BaseModel):
+    """The ``[tool.vestibule.approval]`` section."""
 
-    def __init__(self):
-        self.host: str = "127.0.0.1"
-        self.port: int = 8080
-        self.transport: Transport = Transport.STDIO
-        self.log_level: LogLevel = LogLevel.INFO
-        self.plugins: dict[str, dict[str, Any]] = {}
-        self.rate_limits: dict[str, int] = {}
-        self.approval_enabled: bool = True
-        self.approval_overrides: dict[str, ApprovalMode] = {}
-        self._plugin_schemas: dict[str, type] = {}
+    enabled: bool = True
+    overrides: dict[str, ApprovalMode] = Field(default_factory=dict)
+
+
+class Config(BaseModel):
+    """Vestibule configuration.
+
+    Standardized on Pydantic; the model's fields are the schema for the
+    ``[tool.vestibule]`` section and are the source of truth for the typing and
+    validation of server settings.
+    """
+
+    # Coerce raw TOML values (e.g. str transport -> Transport enum) on
+    # assignment so `_merge` can assign them without manual conversion.
+    model_config = ConfigDict(validate_assignment=True)
+
+    host: str = "127.0.0.1"
+    port: int = 8080
+    transport: Transport = Transport.STDIO
+    log_level: LogLevel = LogLevel.INFO
+    plugins: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    rate_limits: dict[str, int] = Field(default_factory=dict)
+    approval: ApprovalSettings = Field(default_factory=ApprovalSettings)
+
+    # Runtime-only: plugin config schemas registered via the config schema hook.
+    _plugin_schemas: dict[str, type] = PrivateAttr(default_factory=dict)
+
+    # Backward-compatible accessors for the flattened approval fields.
+    @property
+    def approval_enabled(self) -> bool:
+        return self.approval.enabled
+
+    @property
+    def approval_overrides(self) -> dict[str, ApprovalMode]:
+        return self.approval.overrides
 
     @classmethod
     def load(cls, config_path: str | None = None) -> "Config":
@@ -91,77 +118,30 @@ class Config:
 
     @classmethod
     def _load_file(cls, path: Path) -> dict[str, Any]:
-        """Load a single TOML config file."""
+        """Load a single TOML config file into a flat dict for merging."""
         with open(path, "rb") as f:
             data = tomllib.load(f)
+        vestibule = data.get("tool", {}).get("vestibule", {})
 
-        result = {}
+        result: dict[str, Any] = {}
 
-        # Extract server settings from [tool.vestibule]
-        if "tool" in data and "vestibule" in data["tool"]:
-            vestibule_config = data["tool"]["vestibule"]
-
-            if "host" in vestibule_config:
-                result["host"] = vestibule_config["host"]
-            if "port" in vestibule_config:
-                result["port"] = vestibule_config["port"]
-            if "transport" in vestibule_config:
-                # Convert string to Transport enum
-                transport_val = vestibule_config["transport"]
-                if isinstance(transport_val, str):
-                    try:
-                        result["transport"] = Transport(transport_val.lower())
-                    except ValueError:
-                        result["transport"] = transport_val  # Keep as string, validate later
-                else:
-                    result["transport"] = transport_val
-            if "log-level" in vestibule_config:
-                # Convert string to LogLevel enum
-                log_level_val = vestibule_config["log-level"]
-                if isinstance(log_level_val, str):
-                    try:
-                        result["log_level"] = LogLevel(log_level_val.lower())
-                    except ValueError:
-                        result["log_level"] = log_level_val  # Keep as string, validate later
-                else:
-                    result["log_level"] = log_level_val
-
-        # Extract plugin configs from [tool.vestibule.plugins.<name>]
-        if "tool" in data and "vestibule" in data["tool"]:
-            vestibule_config = data["tool"]["vestibule"]
-            if "plugins" in vestibule_config:
-                result["plugins"] = vestibule_config["plugins"]
-
-        # Extract rate limits from [tool.vestibule.rate_limits]
-        if "tool" in data and "vestibule" in data["tool"]:
-            vestibule_config = data["tool"]["vestibule"]
-            if "rate_limits" in vestibule_config:
-                result["rate_limits"] = vestibule_config["rate_limits"]
-
-        # Extract approval config from [tool.vestibule.approval]
-        if "tool" in data and "vestibule" in data["tool"]:
-            vestibule_config = data["tool"]["vestibule"]
-            if "approval" in vestibule_config:
-                approval_config = vestibule_config["approval"]
-                if "enabled" in approval_config:
-                    result["approval_enabled"] = approval_config["enabled"]
-                if "overrides" in approval_config:
-                    result["approval_overrides"] = approval_config["overrides"]
+        # Server settings + plugins + rate_limits + approval from
+        # [tool.vestibule]. Values pass through raw; Pydantic coerces str ->
+        # enums and builds the nested model on assignment in `_merge`
+        # (Config.validate_assignment).
+        for key in ("host", "port", "transport", "log_level", "plugins", "rate_limits", "approval"):
+            if key in vestibule:
+                result[key] = vestibule[key]
 
         return result
 
     def _merge(self, other: dict[str, Any]) -> None:
         """Merge another config dict into this config."""
-        if "host" in other:
-            self.host = other["host"]
-        if "port" in other:
-            self.port = other["port"]
-        if "transport" in other:
-            val = other["transport"]
-            self.transport = val if isinstance(val, Transport) else Transport(val)
-        if "log_level" in other:
-            val = other["log_level"]
-            self.log_level = val if isinstance(val, LogLevel) else LogLevel(val)
+        # Scalar/enum fields: plain assignment; validate_assignment coerces raw
+        # TOML strings (e.g. "http" -> Transport.HTTP) to the field type.
+        for field in ("host", "port", "transport", "log_level"):
+            if field in other:
+                setattr(self, field, other[field])
         if "plugins" in other:
             # Merge plugin configs
             for plugin_name, plugin_config in other["plugins"].items():
@@ -170,10 +150,8 @@ class Config:
                 self.plugins[plugin_name].update(plugin_config)
         if "rate_limits" in other:
             self.rate_limits.update(other["rate_limits"])
-        if "approval_enabled" in other:
-            self.approval_enabled = other["approval_enabled"]
-        if "approval_overrides" in other:
-            self.approval_overrides = normalize_approval_modes(other["approval_overrides"])
+        if "approval" in other:
+            self.approval = other["approval"]
 
     def get_plugin_config(self, plugin_name: str) -> dict[str, Any]:
         """Get configuration for a specific plugin."""
