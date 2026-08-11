@@ -15,6 +15,7 @@ truth: unknown keys are refused, and values are coerced/validated against it.
 import functools
 import os
 import tempfile
+from enum import Enum
 from pathlib import Path
 from typing import Annotated, Any, get_args, get_origin
 
@@ -68,9 +69,7 @@ def _parse_key(key: str) -> list[str]:
 def _write_target(user: bool, file: str | None) -> Path:
     if file:
         return Path(file)
-    if user:
-        return Path.home() / ".vestibule" / "config.toml"
-    return Path.cwd() / ".vestibule" / "config.toml"
+    return _user_path() if user else _project_path()
 
 
 def _user_path() -> Path:
@@ -145,8 +144,7 @@ def _coerce(typ: Any, raw: str) -> Any:
         value = TypeAdapter(typ).validate_python(raw)
     except Exception as e:
         raise ConfigError(f"Invalid value '{raw}' for this key: {e}") from None
-    # Enums (StrEnum is a str subclass) must be written as their value.
-    if hasattr(value, "value") and not isinstance(value, str):
+    if isinstance(value, Enum):  # StrEnum/IntEnum -> plain value for toml
         return value.value
     return value
 
@@ -181,6 +179,11 @@ def _set_in_doc(doc, parts: list[str], value) -> None:
     node[parts[-1]] = value
 
 
+def _absolute_parts(parts: list[str]) -> list[str]:
+    """Prepend the ``tool.vestibule.`` container path."""
+    return ["tool", "vestibule", *parts]
+
+
 def _navigate(doc, parts: list[str]):
     """Return the node at ``parts`` (absolute, incl. tool/vestibule), else None."""
     node = doc
@@ -192,13 +195,20 @@ def _navigate(doc, parts: list[str]):
     return node
 
 
-def _unset_in_doc(doc, parts: list[str]) -> bool:
-    """Remove the node at ``parts`` (absolute). Returns True if removed."""
-    parent = _navigate(doc, parts[:-1])
+def _unset_in_doc(doc, parts: list[str], *, section: bool = False) -> str:
+    """Remove the node at ``parts`` (relative under tool.vestibule).
+
+    Returns ``'removed'``, ``'missing'``, or ``'section'`` (a table that needs
+    ``--section`` to remove).
+    """
+    parent = _navigate(doc, _absolute_parts(parts[:-1]))
     if parent is None or parts[-1] not in parent:
-        return False
+        return "missing"
+    target = parent[parts[-1]]
+    if not section and isinstance(target, tomlkit.items.Table):
+        return "section"
     del parent[parts[-1]]
-    return True
+    return "removed"
 
 
 def _atomic_write(path: Path, doc) -> None:
@@ -251,9 +261,20 @@ def _format_value(v: Any) -> str:
     return str(v)
 
 
+def _require_known(parts: list[str]) -> None:
+    """Guard against typos on destructive ops: reject unknown top-level keys.
+
+    ponytail: only the first segment is checked — deeper keys present in a
+    file were validated on ``set``, and ``unset`` must stay able to remove
+    stale or hand-edited keys.
+    """
+    if parts[0] not in Config.model_fields:
+        raise ConfigError(f"Unknown config key '{PREFIX}{'.'.join(parts)}'.")
+
+
 def _source_of(parts: list[str]) -> str:
     """Return the source layer ('project'/'user'/'default') for a key."""
-    full = ["tool", "vestibule"] + parts
+    full = _absolute_parts(parts)
     if _navigate(_read_doc(_project_path()), full) is not None:
         return "project"
     if _navigate(_read_doc(_user_path()), full) is not None:
@@ -320,14 +341,17 @@ def unset(
     user: Annotated[bool, typer.Option("--user", help="Edit ~/.vestibule/config.toml.")] = False,
     file: Annotated[str | None, typer.Option("--file", help="Edit a specific config file.")] = None,
 ) -> None:
-    """Remove a config key (or section) from the target file."""
+    """Remove a config key (or a whole section with --section) from the file."""
     parts = _parse_key(key)
+    _require_known(parts)
     path = _write_target(user, file)
     doc = _read_doc(path)
-    full = ["tool", "vestibule"] + parts
-    if _unset_in_doc(doc, full):
+    status = _unset_in_doc(doc, parts, section=section)
+    if status == "removed":
         _atomic_write(path, doc)
         typer.echo(f"Removed {key} from {path}")
+    elif status == "section":
+        raise ConfigError(f"'{key}' is a section; pass --section to remove it.")
     else:
         typer.echo(f"'{key}' not present in {path}; no-op.")
 

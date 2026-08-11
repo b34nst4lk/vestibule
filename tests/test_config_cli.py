@@ -34,7 +34,7 @@ send_email = 10  # per minute
         yield proj / "config.toml"
 
 
-def run_config(*args, config_file=None):
+def run_config(*args):
     """Invoke the config subcommand in-process."""
     return runner.invoke(app, ["config", *args])
 
@@ -127,6 +127,17 @@ class TestUnset:
         assert r.exit_code == 0
         assert "no-op" in r.output
 
+    def test_unset_section_requires_flag(self, config_dir):
+        run_config("set", "tool.vestibule.rate_limits.foo", "1", "--file", str(config_dir))
+        r = run_config("unset", "tool.vestibule.rate_limits", "--file", str(config_dir))
+        assert r.exit_code == 1
+        assert "--section" in r.output
+
+    def test_unset_unknown_key_fails(self, config_dir):
+        r = run_config("unset", "tool.vestibule.nope", "--file", str(config_dir))
+        assert r.exit_code == 1
+        assert "Unknown config key" in r.output
+
     def test_unset_section(self, config_dir):
         run_config("set", "tool.vestibule.rate_limits.foo", "1", "--file", str(config_dir))
         r = run_config(
@@ -143,3 +154,11 @@ class TestList:
         assert "host = localhost  (project)" in r.output
         assert "transport = stdio  (default)" in r.output
         assert "Config sources:" in r.output
+
+    def test_list_all_shows_plugin_defaults(self, config_dir):
+        # The whitelisted_email plugin declares a config schema; its unset
+        # fields surface with default values under (default).
+        r = run_config("list", "--all")
+        assert r.exit_code == 0
+        assert "host = localhost  (project)" in r.output
+        assert "smtp_port = 587  (default)" in r.output
