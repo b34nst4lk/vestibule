@@ -16,11 +16,13 @@ from mcp.server.fastmcp import FastMCP
 
 from .approval import APPROVE_TOOL_NAME, configure_approval, grant_approval
 from .config import Config, Transport
+from .config_cli import config_app
 from .envfile import load_env_into_environment
 from .plugin_manager import PluginManager
 from .rate_limit import configure_rate_limits
 
 app = typer.Typer(help="Vestibule - Plugin-based MCP server")
+app.add_typer(config_app, name="config")
 
 
 def get_version() -> str:
