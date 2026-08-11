@@ -1,7 +1,9 @@
 """Tests for the ``vestibule config`` command family (get/set/unset/list)."""
 
+import os
 import tempfile
 from pathlib import Path
+from unittest import mock
 
 import pytest
 from typer.testing import CliRunner
@@ -60,8 +62,35 @@ class TestGet:
         assert r.exit_code == 1
         assert "not set" in r.output
 
+    def test_get_set_to_empty_value(self, config_dir):
+        run_config("set", "tool.vestibule.host", "", "--file", str(config_dir))
+        r = run_config("get", "tool.vestibule.host")
+        assert r.exit_code == 0
+        assert "empty value" in r.output
+
 
 class TestSet:
+    def test_set_writes_project_by_default(self, config_dir):
+        # No --file/--user: writes the project .vestibule/config.toml.
+        r = run_config("set", "tool.vestibule.port", "9000")
+        assert r.exit_code == 0
+        assert "port = 9000" in config_dir.read_text()
+
+    def test_set_user_scope(self, config_dir, monkeypatch):
+        home = Path(os.environ["HOME"])
+        r = run_config("set", "tool.vestibule.port", "7000", "--user")
+        assert r.exit_code == 0
+        user_file = home / ".vestibule" / "config.toml"
+        assert user_file.exists()
+        assert "port = 7000" in user_file.read_text()
+
+    def test_set_creates_file_when_missing(self, config_dir, tmp_path):
+        target = tmp_path / "new" / "config.toml"
+        r = run_config("set", "tool.vestibule.port", "9000", "--file", str(target))
+        assert r.exit_code == 0
+        assert target.exists()
+        assert "port = 9000" in target.read_text()
+
     def test_set_and_roundtrip_preserves_comments(self, config_dir):
         r = run_config("set", "tool.vestibule.port", "9000", "--file", str(config_dir))
         assert r.exit_code == 0
@@ -162,3 +191,20 @@ class TestList:
         assert r.exit_code == 0
         assert "host = localhost  (project)" in r.output
         assert "smtp_port = 587  (default)" in r.output
+
+
+class TestAtomicWrite:
+    def _temp_files(self, config_dir):
+        return list(config_dir.parent.glob(".config.*.tmp"))
+
+    def test_no_temp_left_on_success(self, config_dir):
+        run_config("set", "tool.vestibule.port", "9000", "--file", str(config_dir))
+        assert self._temp_files(config_dir) == []
+
+    def test_failed_write_preserves_original(self, config_dir):
+        original = config_dir.read_text()
+        with mock.patch("vestibule.config_cli.os.replace", side_effect=OSError("boom")):
+            r = run_config("set", "tool.vestibule.port", "9000", "--file", str(config_dir))
+        assert r.exit_code != 0
+        assert config_dir.read_text() == original
+        assert self._temp_files(config_dir) == []
