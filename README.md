@@ -73,6 +73,46 @@ EMAIL_SENDER_EMAIL=you@gmail.com
 EMAIL_WHITELIST='{"alice": "alice@example.com", "bob": "bob@example.com"}'
 ```
 
+### The `vestibule config` command
+
+`vestibule config` manages non-secret configuration without hand-editing the
+TOML file. Keys are full dotted paths under `tool.vestibule.` (the same
+prefix as the file), e.g. `tool.vestibule.host` or
+`tool.vestibule.plugins.whitelisted_email.smtp_host`.
+
+```bash
+# Read the effective value (merged across layers; distinguishes unset from empty)
+vestibule config get tool.vestibule.host
+
+# Set / remove a key. Values are validated and coerced against the schema.
+vestibule config set tool.vestibule.port 9000
+vestibule config unset tool.vestibule.rate_limits.send_email
+
+# Remove a whole section (unset refuses a section without this flag)
+vestibule config unset --section tool.vestibule.rate_limits
+
+# List effective config annotated with its source layer (project/user/default)
+vestibule config list
+vestibule config list --all   # also show unset keys with their defaults
+```
+
+Edits are atomic and preserve comments/formatting (tomlkit round-trip).
+
+**Write target.** `set`/`unset` edit the project file (`.vestibule/config.toml`)
+by default. Scope flags redirect the write:
+
+```bash
+vestibule config set tool.vestibule.port 9000 --user     # ~/.vestibule/config.toml
+vestibule config set tool.vestibule.port 9000 --file /path/to/config.toml
+```
+
+The Pydantic schema is the source of truth: unknown keys are rejected, and a
+plugin that declares no config schema cannot be configured via `set`.
+
+**Secrets are out of scope.** `vestibule config` manages non-secret settings
+only; credentials live in `.env`/environment variables (see above) and are
+never written to the config file.
+
 ### Running
 
 ```bash
