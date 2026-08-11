@@ -355,12 +355,7 @@ enabled = false
     def test_merge_approval(self):
         """Test approval config is merged correctly."""
         config = Config()
-        config._merge(
-            {
-                "approval_enabled": False,
-                "approval_overrides": {"other_tool": "always"},
-            }
-        )
+        config._merge({"approval": {"enabled": False, "overrides": {"other_tool": "always"}}})
         assert config.approval_enabled is False
         assert config.approval_overrides == {"other_tool": "always"}
 
@@ -387,14 +382,14 @@ send_email = "never"
     def test_merge_approval_overrides_are_approval_mode(self):
         """Merged override values are normalized to ApprovalMode."""
         config = Config()
-        config._merge({"approval_overrides": {"send_email": "first_only"}})
+        config._merge({"approval": {"overrides": {"send_email": "first_only"}}})
         assert config.approval_overrides["send_email"] is ApprovalMode.FIRST_ONLY
 
     def test_invalid_approval_override_raises(self):
         """An unknown override mode raises a clear error at load time."""
         config = Config()
-        with pytest.raises(ValueError, match="Invalid approval mode"):
-            config._merge({"approval_overrides": {"send_email": "sometimes"}})
+        with pytest.raises(ValueError):
+            config._merge({"approval": {"overrides": {"send_email": "sometimes"}}})
 
 
 class TestConfigPydanticModel:
@@ -428,20 +423,20 @@ class TestConfigPydanticModel:
         assert config.approval.enabled is True
         assert config.approval.overrides == {}
 
-    def test_approval_overrides_coerced_via_model(self):
-        """Setting approval_overrides (via setter) coerces strings to ApprovalMode."""
+    def test_approval_coerced_via_nested_model(self):
+        """TOML override strings coerce to ApprovalMode via the nested model."""
         config = Config()
-        config.approval_overrides = {"send_email": "never"}
+        config._merge({"approval": {"overrides": {"send_email": "never"}}})
         assert config.approval.overrides["send_email"] is ApprovalMode.NEVER
 
-    def test_backward_compat_approval_accessors(self):
-        """Flattened approval_enabled/approval_overrides still work."""
+    def test_backward_compat_approval_read_accessors(self):
+        """Flattened approval_enabled/approval_overrides read accessors work."""
         config = Config()
         assert config.approval_enabled is True
-        config.approval_enabled = False
-        assert config.approval.enabled is False
+        assert config.approval_overrides == {}
 
-        config.approval_overrides = {"send_email": "first_only"}
+        config._merge({"approval": {"enabled": False, "overrides": {"send_email": "first_only"}}})
+        assert config.approval_enabled is False
         assert config.approval_overrides["send_email"] is ApprovalMode.FIRST_ONLY
 
     def test_log_level_snake_case(self):

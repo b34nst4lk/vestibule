@@ -18,7 +18,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
-from .approval import ApprovalMode, normalize_approval_modes
+from .approval import ApprovalMode
 
 
 class Transport(StrEnum):
@@ -73,17 +73,9 @@ class Config(BaseModel):
     def approval_enabled(self) -> bool:
         return self.approval.enabled
 
-    @approval_enabled.setter
-    def approval_enabled(self, value: bool) -> None:
-        self.approval.enabled = value
-
     @property
     def approval_overrides(self) -> dict[str, ApprovalMode]:
         return self.approval.overrides
-
-    @approval_overrides.setter
-    def approval_overrides(self, value: dict[str, ApprovalMode]) -> None:
-        self.approval.overrides = normalize_approval_modes(value)
 
     @classmethod
     def load(cls, config_path: str | None = None) -> "Config":
@@ -133,21 +125,13 @@ class Config(BaseModel):
 
         result: dict[str, Any] = {}
 
-        # Server settings + plugins + rate_limits from [tool.vestibule]. Values
-        # pass through raw; Pydantic coerces str -> enums on assignment in
-        # `_merge` (Config.validate_assignment).
-        for key in ("host", "port", "transport", "log_level", "plugins", "rate_limits"):
+        # Server settings + plugins + rate_limits + approval from
+        # [tool.vestibule]. Values pass through raw; Pydantic coerces str ->
+        # enums and builds the nested model on assignment in `_merge`
+        # (Config.validate_assignment).
+        for key in ("host", "port", "transport", "log_level", "plugins", "rate_limits", "approval"):
             if key in vestibule:
                 result[key] = vestibule[key]
-
-        # [tool.vestibule.approval] -> flattened keys for the backward-compat
-        # approval accessors (main.py / cli.py read cfg.approval_enabled etc.).
-        approval = vestibule.get("approval")
-        if isinstance(approval, dict):
-            if "enabled" in approval:
-                result["approval_enabled"] = approval["enabled"]
-            if "overrides" in approval:
-                result["approval_overrides"] = approval["overrides"]
 
         return result
 
@@ -166,10 +150,8 @@ class Config(BaseModel):
                 self.plugins[plugin_name].update(plugin_config)
         if "rate_limits" in other:
             self.rate_limits.update(other["rate_limits"])
-        if "approval_enabled" in other:
-            self.approval_enabled = other["approval_enabled"]
-        if "approval_overrides" in other:
-            self.approval_overrides = other["approval_overrides"]
+        if "approval" in other:
+            self.approval = other["approval"]
 
     def get_plugin_config(self, plugin_name: str) -> dict[str, Any]:
         """Get configuration for a specific plugin."""
