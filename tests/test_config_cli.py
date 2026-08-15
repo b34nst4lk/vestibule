@@ -76,7 +76,8 @@ class TestSet:
         assert r.exit_code == 0
         assert "port = 9000" in config_dir.read_text()
 
-    def test_set_user_scope(self, config_dir, monkeypatch):
+    def test_set_user_scope(self, config_dir):
+        # HOME is isolated to a temp dir by the config_dir fixture.
         home = Path(os.environ["HOME"])
         r = run_config("set", "tool.vestibule.port", "7000", "--user")
         assert r.exit_code == 0
